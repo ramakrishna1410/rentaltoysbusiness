@@ -9,8 +9,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:api": "npm run dev -w @rentaltoys/api",
-    "dev:customer": "npm run start -w @rentaltoys/customer",
-    "dev:admin": "npm run start -w @rentaltoys/admin",
+    "dev:customer": "npm run start -w @rentaltoys/customer -- --port 8081",
+    "dev:admin": "npm run start -w @rentaltoys/admin -- --port 8082",
     "db:setup": "npm run db:push -w @rentaltoys/api && npm run db:seed -w @rentaltoys/api"
   },
   "overrides": {
