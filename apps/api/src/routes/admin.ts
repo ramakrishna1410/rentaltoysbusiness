@@ -2,6 +2,9 @@ import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  ADMIN_TOY_FILTERS,
+  ADMIN_TOY_SORTS,
+  AGE_BANDS,
   INTERESTS,
   MATERIALS,
   PIECE_TYPES,
@@ -10,7 +13,9 @@ import {
   SUBSCRIPTION_STATUSES,
   TOY_STAGES,
   ZONE_TYPES,
+  ageBandFor,
   binQr,
+  paginate,
   sizeClassFor,
 } from '@rentaltoys/shared';
 import { requireAdmin, requireStaff } from '../lib/auth';
@@ -59,21 +64,51 @@ const toySchema = z
   })
   .refine((t) => t.powerType === 'NON_ELECTRIC' || !!t.batteryType, { message: 'Electric toys need a battery type', path: ['batteryType'] });
 
+const toyListSchema = z.object({
+  q: z.string().trim().optional(),
+  filter: z.enum(ADMIN_TOY_FILTERS).optional(),
+  ageBand: z.enum(AGE_BANDS.map((b) => b.code) as [string, ...string[]]).optional(),
+  material: z.enum(MATERIALS).optional(),
+  sort: z.enum(ADMIN_TOY_SORTS).default('name'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(24),
+});
+
+/** Whole stock, one page at a time, with stock counts per stage for each toy. */
 adminRouter.get(
   '/toys',
   wrap(async (req, res) => {
+    const f = parse(toyListSchema, req.query);
     const toys = await prisma.toy.findMany({
-      orderBy: { name: 'asc' },
-      include: { units: { select: { stage: true } }, photos: photoIdsInclude },
+      where: {
+        material: f.material,
+        ...(f.q
+          ? { OR: ['name', 'sku', 'brand'].map((k) => ({ [k]: { contains: f.q, mode: 'insensitive' as const } })) }
+          : {}),
+      },
+      include: { units: { select: { stage: true, reservedForOrderId: true } }, photos: photoIdsInclude },
     });
     const base = baseUrl(req);
-    res.json(
-      toys.map(({ units, photos, ...t }) => ({
+    const rows = toys
+      .map(({ units, photos, ...t }) => ({
         ...t,
         images: photoUrls(base, { images: t.images, photos }),
+        photoCount: photos.length,
+        availableUnits: units.filter((u) => u.stage === 'STORAGE' && !u.reservedForOrderId).length,
         unitsByStage: units.reduce<Record<string, number>>((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {}),
-      })),
-    );
+      }))
+      .filter((t) => !f.ageBand || ageBandFor(t.ageMinMonths, t.ageMaxMonths) === f.ageBand)
+      .filter((t) =>
+        f.filter === 'noPhotos' ? t.photoCount === 0 : f.filter === 'outOfStock' ? t.availableUnits === 0 : f.filter === 'hasDamaged' ? (t.unitsByStage.DAMAGE ?? 0) > 0 : true,
+      );
+    const order: Record<typeof f.sort, (a: (typeof rows)[number], b: (typeof rows)[number]) => number> = {
+      name: () => 0,
+      recent: (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      rented: (a, b) => b.rentalCount - a.rentalCount,
+      stock: (a, b) => a.availableUnits - b.availableUnits,
+    };
+    rows.sort((a, b) => order[f.sort](a, b) || a.name.localeCompare(b.name));
+    res.json(paginate(rows, f.page, f.pageSize));
   }),
 );
 

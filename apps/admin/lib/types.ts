@@ -27,6 +27,8 @@ export interface Toy {
   mrp: number;
   rentalCount: number;
   unitsByStage?: Partial<Record<ToyStage, number>>;
+  availableUnits?: number;
+  photoCount?: number;
 }
 
 export interface BinRef {

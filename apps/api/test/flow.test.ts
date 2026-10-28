@@ -55,7 +55,7 @@ describe('auth and roles', () => {
 describe('personalised catalog', () => {
   it('shows interest-matched toys first for the kid', async () => {
     const res = await request(app).get(`/catalog?kidId=${kidId}`).set(auth(customerToken)).expect(200);
-    const top = res.body.slice(0, 3);
+    const top = res.body.items.slice(0, 3);
     for (const t of top) expect(t.powerType === 'ELECTRIC' || t.interestTags.includes('EDUCATIONAL_STEM')).toBe(true);
     expect(top[0].reasons.join(' ')).toMatch(/Matches/);
   });
@@ -76,8 +76,8 @@ describe('personalised catalog', () => {
       })
       .expect(201);
     await request(app).post('/admin/units').set(auth(adminToken)).send({ toyId: toy.body.id, cost: 200 }).expect(201);
-    const res = await request(app).get('/catalog').expect(200);
-    expect(res.body.find((t: { id: string }) => t.id === toy.body.id)).toBeUndefined();
+    const res = await request(app).get('/catalog?pageSize=50').expect(200);
+    expect(res.body.items.find((t: { id: string }) => t.id === toy.body.id)).toBeUndefined();
   });
 
   it('validates toy micro-details', async () => {
@@ -264,7 +264,7 @@ describe('subscription → order → scan-driven lifecycle', () => {
       .set(auth(adminToken))
       .send({ expectedFromStage: 'PROCUREMENT', toStage: 'STORAGE', scannedPayload: unitQr(fresh.id), toBinCode: sug.body.suggestions[0].binCode })
       .expect(200);
-    const res = await request(app).get('/catalog').expect(200);
-    expect(res.body.find((t: { id: string }) => t.id === fresh.toyId)).toBeDefined();
+    const res = await request(app).get('/catalog?pageSize=50').expect(200);
+    expect(res.body.items.find((t: { id: string }) => t.id === fresh.toyId)).toBeDefined();
   });
 });

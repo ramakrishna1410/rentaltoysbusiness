@@ -26,7 +26,7 @@ beforeAll(async () => {
 
 describe('toy photos', () => {
   it('starts with no placeholder photos', async () => {
-    const card = (await request(app).get('/catalog')).body.find((t: { id: string }) => t.id === toyId);
+    const card = (await request(app).get('/catalog?pageSize=50')).body.items.find((t: { id: string }) => t.id === toyId);
     expect(card.images).toEqual([]);
   });
 
@@ -38,7 +38,7 @@ describe('toy photos', () => {
     expect(img.headers['content-type']).toBe('image/png');
     expect(Buffer.from(img.body).subarray(1, 4).toString()).toBe('PNG');
 
-    const card = (await request(app).get('/catalog')).body.find((t: { id: string }) => t.id === toyId);
+    const card = (await request(app).get('/catalog?pageSize=50')).body.items.find((t: { id: string }) => t.id === toyId);
     expect(card.images.map((u: string) => u.split('/').pop())).toEqual([first.body.id, second.body.id]);
     const detail = await request(app).get(`/catalog/${toyId}`).expect(200);
     expect(detail.body.images[0]).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:\\d+/images/${first.body.id}$`));

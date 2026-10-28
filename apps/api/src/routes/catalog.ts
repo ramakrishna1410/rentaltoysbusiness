@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
-import { INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, remaining } from '@rentaltoys/shared';
+import { CATALOG_SORTS, INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, paginate, remaining } from '@rentaltoys/shared';
 import { optionalAuth, requireAuth } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
 import { baseUrl, photoIdsInclude } from '../lib/images';
@@ -17,6 +17,9 @@ const filterSchema = z.object({
   pieceType: z.enum(PIECE_TYPES).optional(),
   interest: z.enum(INTERESTS).optional(),
   q: z.string().optional(),
+  sort: z.enum(CATALOG_SORTS).default('best'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 
 export const catalogRouter = Router();
@@ -29,8 +32,9 @@ async function ensureOwnKid(userId: string | undefined, kidId: string) {
 }
 
 /**
- * Catalog of toys with at least one unit in STORAGE. With kidId, results are ranked for that kid;
- * otherwise they are sorted by popularity.
+ * Catalog of toys with at least one unit in STORAGE, one page at a time.
+ * sort=best ranks for the kid when kidId is given (popularity otherwise). The whole filtered list is
+ * ranked before slicing, so page 2 continues page 1's order; fine for a catalog of a few thousand toys.
  */
 catalogRouter.get(
   '/',
@@ -46,19 +50,25 @@ catalogRouter.get(
       ...(f.q ? { OR: [{ name: { contains: f.q, mode: 'insensitive' } }, { brand: { contains: f.q, mode: 'insensitive' } }] } : {}),
     };
     const toys = await availableCatalog(where);
-    if (f.kidId) {
-      await ensureOwnKid(req.user?.id, f.kidId);
+    if (f.kidId) await ensureOwnKid(req.user?.id, f.kidId);
+
+    let cards: ReturnType<typeof toyCard>[];
+    if (f.sort === 'best' && f.kidId) {
       const { ranked } = await rankForKid(f.kidId, toys, { limit: 12 });
       const rankedIds = new Set(ranked.map((r) => r.toy.id));
       // Toys outside the kid's age window still show, after the ranked ones.
       const rest = toys.filter((t) => !rankedIds.has(t.id)).sort((a, b) => b.rentalCount - a.rentalCount);
-      res.json([
-        ...ranked.map((r) => toyCard(r.toy, base, { score: r.score, reasons: r.reasons })),
-        ...rest.map((t) => toyCard(t, base)),
-      ]);
-      return;
+      cards = [...ranked.map((r) => toyCard(r.toy, base, { score: r.score, reasons: r.reasons })), ...rest.map((t) => toyCard(t, base))];
+    } else {
+      const order: Record<typeof f.sort, (a: (typeof toys)[number], b: (typeof toys)[number]) => number> = {
+        best: (a, b) => b.rentalCount - a.rentalCount,
+        popular: (a, b) => b.rentalCount - a.rentalCount,
+        newest: (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+        age: (a, b) => a.ageMinMonths - b.ageMinMonths || a.ageMaxMonths - b.ageMaxMonths,
+      };
+      cards = toys.sort((a, b) => order[f.sort](a, b) || a.name.localeCompare(b.name)).map((t) => toyCard(t, base));
     }
-    res.json(toys.sort((a, b) => b.rentalCount - a.rentalCount).map((t) => toyCard(t, base)));
+    res.json(paginate(cards, f.page, f.pageSize));
   }),
 );
 
