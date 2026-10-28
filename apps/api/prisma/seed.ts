@@ -159,6 +159,10 @@ export async function seedInventory(adminId: string) {
 }
 
 async function main() {
+  // The demo seed wipes every table; it must never run against the live database.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production. Use db:seed:base instead.');
+  }
   await resetDatabase();
   await seedPlans();
   await seedWarehouse();

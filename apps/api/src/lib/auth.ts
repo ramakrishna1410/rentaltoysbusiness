@@ -23,6 +23,15 @@ const secret = () => {
   return s;
 };
 
+/** Called at startup so a misconfigured deploy fails fast instead of on the first login. */
+export function assertAuthConfig() {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error('JWT_SECRET is not set');
+  if (process.env.NODE_ENV === 'production' && s.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters in production');
+  }
+}
+
 export function signToken(user: AuthUser): string {
   return jwt.sign({ sub: user.id, role: user.role }, secret(), { expiresIn: '30d' });
 }

@@ -1,5 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import { errorHandler, HttpError, wrap } from './lib/http';
 import { prisma } from './lib/prisma';
 import { adminRouter } from './routes/admin';
@@ -10,8 +12,16 @@ import { ordersRouter, plansRouter, subscriptionsRouter } from './routes/subscri
 
 export function createApp() {
   const app = express();
-  app.use(cors());
+  // Render (and most hosts) terminate TLS at a proxy; needed for correct client IPs in rate limiting.
+  app.set('trust proxy', 1);
+  // QR images and label sheets are loaded by the apps from another origin.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(cors({ origin: corsOrigins() }));
   app.use(express.json({ limit: '1mb' }));
+
+  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+  app.use('/auth/login', authLimiter);
+  app.use('/auth/signup', authLimiter);
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
@@ -39,4 +49,13 @@ export function createApp() {
   app.use((_req, _res, next) => next(new HttpError(404, 'Not found')));
   app.use(errorHandler);
   return app;
+}
+
+/**
+ * Native apps send no Origin header, so CORS only matters for browsers (the future website and the
+ * Expo web builds). CORS_ORIGINS is a comma-separated allow-list; unset means allow all (local dev).
+ */
+function corsOrigins(): string[] | boolean {
+  const list = (process.env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+  return list.length ? list : true;
 }

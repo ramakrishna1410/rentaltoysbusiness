@@ -29,6 +29,8 @@ cp apps/api/.env.example apps/api/.env
 npm run db:setup
 ```
 
+(`db:setup` pushes the schema and loads the **demo** data; see "Backend and data" below.)
+
 ```bash
 npm run dev:api
 ```
@@ -60,6 +62,58 @@ npm test
 ```bash
 npm run typecheck
 ```
+
+## Backend and data
+
+The apps have **no hardcoded data**: every screen reads and writes through the API (`apps/api`), which stores everything in
+PostgreSQL through Prisma (`apps/api/prisma/schema.prisma`). There are two seeds:
+
+| Command | Use | What it does |
+|---|---|---|
+| `db:seed:demo` (also `db:seed`) | local dev only | **Wipes all tables**, then loads 28 demo toys, 61 units, demo logins. Refuses to run with `NODE_ENV=production`. |
+| `db:seed:base` | production | Creates the 9 plans, the warehouse layout and the first admin (from `ADMIN_*` env vars) if missing. Safe to re-run; never overwrites edited prices or passwords. |
+
+Schema changes ship as Prisma migrations in `apps/api/prisma/migrations`. Production applies them on every start (`prisma migrate deploy`).
+
+## Deploying (Render + managed PostgreSQL)
+
+`render.yaml` defines everything:
+
+- **API web service** (`rentaltoys-api`, Starter plan): installs only the API workspace, runs migrations on start, and is
+  health-checked on `/health`.
+- **PostgreSQL 16 database** (`rentaltoys-db`, Basic 256 MB): no public access; only Render services can connect to it.
+- **Region:** both are in Singapore, the closest Render region to Chennai.
+- **Cost:** about US$7 + US$6 a month to start. The free tier sleeps and its database expires, so don't use it for real customers.
+
+1. Push this branch to GitHub and merge it into your default branch. Render deploys the default branch.
+2. In Render: **New → Blueprint**, pick this repo, and approve the service and database it shows.
+3. Fill in the prompted variables:
+   - `ADMIN_EMAIL`, `ADMIN_PHONE`, `ADMIN_PASSWORD`: your first admin. The password needs 10+ characters.
+   - `CORS_ORIGINS`: leave empty until the website exists, then set e.g. `https://rentaltoys.in`.
+   - `JWT_SECRET` and `DATABASE_URL` are filled in automatically.
+4. When the first deploy is live, open the service's **Shell** tab and run this once:
+   ```bash
+   npm run -w @rentaltoys/api db:seed:base
+   ```
+5. Check `https://rentaltoys-api.onrender.com/health` (your URL may differ). It should return `{"ok":true}`.
+6. Put that URL in `apps/customer/eas.json` and `apps/admin/eas.json`. Then build the apps with EAS:
+   ```bash
+   npx eas-cli build --profile preview --platform android
+   ```
+   Run it inside each app folder. For local testing, set `EXPO_PUBLIC_API_URL` in `apps/<app>/.env` instead.
+7. Log in to the admin app with the admin from step 3. From there:
+   - add staff (`POST /admin/staff`);
+   - add toys and procure units (QR labels are created automatically);
+   - scan the units into storage, which makes them show up in the customer catalog.
+
+**Running it in production:**
+- **Backups:** paid Render Postgres plans include daily backups. Do a test restore once before launch.
+- **Secrets:** rotating `JWT_SECRET` logs everyone out; that is the intended way to revoke sessions.
+- **QR images** are stored in Postgres (`QrImage`), which is fine for thousands of toys. Move them to S3 or Cloudflare R2
+  when photo upload is added.
+- **Custom domain:** add `api.rentaltoys.in` under the service's Settings → Custom Domains. Render issues the TLS certificate.
+- **Security:** the API sends security headers (helmet), rate-limits login and signup (20 per 15 minutes per IP), and won't
+  start in production with a weak `JWT_SECRET`.
 
 ## Subscription plans
 
