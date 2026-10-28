@@ -1,0 +1,16 @@
+{
+  "name": "rentaltoys",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:api": "npm run dev -w @rentaltoys/api",
+    "dev:customer": "npm run start -w @rentaltoys/customer",
+    "dev:admin": "npm run start -w @rentaltoys/admin",
+    "db:setup": "npm run db:push -w @rentaltoys/api && npm run db:seed -w @rentaltoys/api"
+  }
+}

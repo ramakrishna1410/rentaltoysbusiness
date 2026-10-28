@@ -1,0 +1,432 @@
+// Enum values mirror packages/shared/src/enums.ts and lifecycle.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum Material {
+  PLASTIC
+  WOODEN
+  FABRIC_PLUSH
+  METAL
+  SILICONE_RUBBER
+  MIXED
+  OTHER
+}
+
+enum PowerType {
+  ELECTRIC
+  NON_ELECTRIC
+}
+
+enum PieceType {
+  SINGLE
+  MULTI
+}
+
+enum SizeClass {
+  STANDARD
+  LARGE
+}
+
+enum Interest {
+  ELECTRIC
+  EDUCATIONAL_STEM
+  WOODEN
+  SOFT_PLUSH
+  PRETEND_PLAY
+  PUZZLES
+  BUILDING_BLOCKS
+  OUTDOOR_RIDE_ON
+  MUSICAL
+  ARTS_CRAFTS
+}
+
+enum ToyStage {
+  PROCUREMENT
+  STORAGE
+  IN_TRANSIT
+  WITH_CUSTOMER
+  SANITATION
+  DAMAGE
+  SCRAP
+}
+
+enum UnitCondition {
+  NEW
+  GOOD
+  FAIR
+}
+
+enum PieceStatus {
+  PRESENT
+  MISSING
+  DAMAGED
+}
+
+enum ZoneType {
+  FAST
+  MEDIUM
+  SLOW
+}
+
+enum TierCode {
+  BASIC
+  PRO
+  ULTRA
+}
+
+enum DurationCode {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+}
+
+enum OrderType {
+  DELIVERY
+  SWAP
+}
+
+enum OrderStatus {
+  REQUESTED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum InteractionType {
+  VIEW
+  WISHLIST
+  RENT
+  RATING
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String         @unique
+  passwordHash  String
+  role          Role           @default(CUSTOMER)
+  addressLine   String?
+  area          String?
+  pincode       String?
+  createdAt     DateTime       @default(now())
+  kids          KidProfile[]
+  subscriptions Subscription[]
+  interactions  Interaction[]
+  movements     StageMovement[]
+}
+
+model KidProfile {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  dateOfBirth  DateTime
+  gender       String?
+  interests    Interest[]
+  createdAt    DateTime      @default(now())
+  interactions Interaction[]
+  orders       Order[]
+}
+
+model Toy {
+  id                String        @id @default(cuid())
+  sku               String        @unique
+  name              String
+  brand             String?
+  description       String        @default("")
+  images            String[]
+  color             String
+  lengthCm          Float
+  breadthCm         Float
+  heightCm          Float
+  weightKg          Float
+  manufacturingDate DateTime
+  ageMinMonths      Int
+  ageMaxMonths      Int
+  material          Material
+  powerType         PowerType
+  batteryType       String?
+  batteryCount      Int?
+  pieceType         PieceType
+  pieceCount        Int           @default(1)
+  interestTags      Interest[]
+  tags              String[]
+  sizeClass         SizeClass
+  mrp               Int
+  rentalCount       Int           @default(0)
+  ratingSum         Int           @default(0)
+  ratingCount       Int           @default(0)
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  units             ToyUnit[]
+  interactions      Interaction[]
+  orderItems        OrderItem[]
+}
+
+model QrImage {
+  id        String   @id @default(cuid())
+  payload   String   @unique
+  png       Bytes
+  svg       String
+  createdAt DateTime @default(now())
+}
+
+model ToyUnit {
+  id                 String          @id @default(cuid())
+  toyId              String
+  toy                Toy             @relation(fields: [toyId], references: [id])
+  vendor             String?
+  procurementDate    DateTime
+  cost               Int
+  condition          UnitCondition   @default(NEW)
+  stage              ToyStage        @default(PROCUREMENT)
+  reservedForOrderId String?
+  binId              String?
+  bin                Bin?            @relation(fields: [binId], references: [id])
+  qrPayload          String          @unique
+  qrImageId          String?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  pieces             ToyPiece[]
+  movements          StageMovement[]
+  orderItems         OrderItem[]
+
+  @@index([toyId, stage])
+}
+
+model ToyPiece {
+  id        String      @id @default(cuid())
+  unitId    String
+  unit      ToyUnit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  pieceNo   Int
+  label     String
+  qrPayload String      @unique
+  qrImageId String?
+  status    PieceStatus @default(PRESENT)
+
+  @@unique([unitId, pieceNo])
+}
+
+model StageMovement {
+  id             String    @id @default(cuid())
+  unitId         String
+  unit           ToyUnit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  fromStage      ToyStage?
+  toStage        ToyStage
+  scannedPayload String
+  scannedById    String
+  scannedBy      User      @relation(fields: [scannedById], references: [id])
+  scannedAt      DateTime  @default(now())
+  fromBinId      String?
+  toBinId        String?
+  orderId        String?
+  pieceScan      Json?
+  reason         String?
+
+  @@index([unitId, scannedAt])
+}
+
+model Zone {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  type                ZoneType
+  distanceToDispatchM Int
+  racks               Rack[]
+}
+
+model Rack {
+  id      String  @id @default(cuid())
+  zoneId  String
+  zone    Zone    @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  code    String  @unique
+  shelves Shelf[]
+}
+
+model Shelf {
+  id     String @id @default(cuid())
+  rackId String
+  rack   Rack   @relation(fields: [rackId], references: [id], onDelete: Cascade)
+  level  Int
+  bins   Bin[]
+}
+
+model Bin {
+  id            String    @id @default(cuid())
+  shelfId       String
+  shelf         Shelf     @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  code          String    @unique
+  lengthCm      Float
+  breadthCm     Float
+  heightCm      Float
+  maxWeightKg   Float
+  usedVolumeCm3 Float     @default(0)
+  usedWeightKg  Float     @default(0)
+  pickCost      Float
+  qrPayload     String    @unique
+  qrImageId     String?
+  units         ToyUnit[]
+}
+
+model PlanTier {
+  code               TierCode @id
+  name               String
+  toyCredits         Int
+  swapsPerMonth      Int
+  deliveriesPerMonth Int
+  expressDelivery    Boolean
+  baseMonthlyPrice   Int
+  plans              Plan[]
+}
+
+model PlanDuration {
+  code              DurationCode @id
+  name              String
+  months            Int
+  priceFactor       Float
+  swapRollover      Boolean
+  pauseDays         Int
+  buyoutDiscountPct Int
+  extras            String[]
+  plans             Plan[]
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  tierCode      TierCode
+  tier          PlanTier       @relation(fields: [tierCode], references: [code])
+  durationCode  DurationCode
+  duration      PlanDuration   @relation(fields: [durationCode], references: [code])
+  isActive      Boolean        @default(true)
+  prices        PlanPrice[]
+  subscriptions Subscription[]
+
+  @@unique([tierCode, durationCode])
+}
+
+model PlanPrice {
+  id               String       @id @default(cuid())
+  planId           String
+  plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  billingCycle     BillingCycle
+  instalmentCount  Int
+  instalmentAmount Int
+  totalAmount      Int
+
+  @@unique([planId, billingCycle])
+}
+
+model Subscription {
+  id                  String             @id @default(cuid())
+  userId              String
+  user                User               @relation(fields: [userId], references: [id])
+  planId              String
+  plan                Plan               @relation(fields: [planId], references: [id])
+  billingCycle        BillingCycle
+  status              SubscriptionStatus @default(PENDING_PAYMENT)
+  commitmentStart     DateTime
+  commitmentEnd       DateTime
+  periodStart         DateTime
+  periodEnd           DateTime
+  swapsUsed           Int                @default(0)
+  deliveriesUsed      Int                @default(0)
+  rolloverSwaps       Int                @default(0)
+  creditsInUse        Int                @default(0)
+  missingPieceCharges Int                @default(0)
+  pausedUntil         DateTime?
+  createdAt           DateTime           @default(now())
+  invoices            Invoice[]
+  orders              Order[]
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  seq            Int
+  dueDate        DateTime
+  amount         Int
+  status         InvoiceStatus @default(PENDING)
+  paidAt         DateTime?
+  paymentRef     String?
+
+  @@unique([subscriptionId, seq])
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  kidId          String?
+  kid            KidProfile?  @relation(fields: [kidId], references: [id])
+  type           OrderType
+  status         OrderStatus  @default(REQUESTED)
+  scheduledDate  DateTime
+  createdAt      DateTime     @default(now())
+  items          OrderItem[]
+}
+
+enum OrderItemDirection {
+  OUT
+  RETURN
+}
+
+model OrderItem {
+  id        String             @id @default(cuid())
+  orderId   String
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  toyId     String
+  toy       Toy                @relation(fields: [toyId], references: [id])
+  unitId    String?
+  unit      ToyUnit?           @relation(fields: [unitId], references: [id])
+  direction OrderItemDirection
+}
+
+model Interaction {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kidId     String?
+  kid       KidProfile?     @relation(fields: [kidId], references: [id], onDelete: Cascade)
+  toyId     String
+  toy       Toy             @relation(fields: [toyId], references: [id], onDelete: Cascade)
+  type      InteractionType
+  value     Float?
+  createdAt DateTime        @default(now())
+
+  @@index([kidId, createdAt])
+}
