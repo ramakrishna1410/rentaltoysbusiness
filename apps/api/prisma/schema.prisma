@@ -74,6 +74,20 @@ enum ToyColor {
   GREY
 }
 
+enum PlayPlace {
+  INDOOR
+  OUTDOOR
+  BOTH
+}
+
+enum ParentGoal {
+  LEARNING
+  FUN
+  SCREEN_FREE
+  MOTOR_SKILLS
+  SOCIAL
+}
+
 enum ToyStage {
   PROCUREMENT
   STORAGE
@@ -177,6 +191,10 @@ model KidProfile {
   dateOfBirth  DateTime
   gender       String?
   interests    Interest[]
+  /// Colour filters the kid likes: ToyColor values, or DUAL / MULTI (see packages/shared colors.ts).
+  favoriteColors String[]    @default([])
+  playPlace    PlayPlace?
+  goals        ParentGoal[]
   createdAt    DateTime      @default(now())
   interactions Interaction[]
   orders       Order[]

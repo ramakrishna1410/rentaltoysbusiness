@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Text } from 'react-native';
 import { INTEREST_LABELS, ageInMonths } from '@rentaltoys/shared';
-import { KidForm, emptyKid, kidError, parseDob, type KidDraft } from '../../components/KidForm';
+import { KidForm, emptyKid, kidBody, kidError, type KidDraft } from '../../components/KidForm';
 import { Button, Card, ErrorText, H1, H2, Muted, Screen } from '../../components/ui';
 import { api, useAuth, type Kid } from '../../lib/api';
 import { colors } from '../../lib/theme';
@@ -13,7 +13,7 @@ export default function Profile() {
   const [editing, setEditing] = useState<{ id?: string; draft: KidDraft } | null>(null);
   const save = useMutation({
     mutationFn: async (e: { id?: string; draft: KidDraft }) => {
-      const body = { name: e.draft.name.trim(), dateOfBirth: parseDob(e.draft.dateOfBirth)!.toISOString(), interests: e.draft.interests };
+      const body = kidBody(e.draft);
       return e.id ? api.patch(`/kids/${e.id}`, body) : api.post('/kids', body);
     },
     onSuccess: async () => {
@@ -22,7 +22,7 @@ export default function Profile() {
     },
   });
   if (!me) return null;
-  const edit = (k: Kid) => setEditing({ id: k.id, draft: { name: k.name, dateOfBirth: k.dateOfBirth.slice(0, 10), interests: k.interests } });
+  const edit = (k: Kid) => setEditing({ id: k.id, draft: { name: k.name, dateOfBirth: k.dateOfBirth.slice(0, 10), interests: k.interests, favoriteColors: k.favoriteColors ?? [], playPlace: k.playPlace ?? null, goals: k.goals ?? [] } });
 
   return (
     <Screen>
@@ -58,7 +58,7 @@ export default function Profile() {
         variant="ghost"
         onPress={async () => {
           await signOut();
-          router.replace('/welcome');
+          router.replace('/');
         }}
       />
     </Screen>

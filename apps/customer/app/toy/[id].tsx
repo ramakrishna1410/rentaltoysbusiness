@@ -16,7 +16,7 @@ const MATERIAL: Record<string, string> = {
 
 export default function ToyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { activeKidId } = useAuth();
+  const { activeKidId, me } = useAuth();
   const box = useBox();
   const toy = useQuery({ queryKey: ['toy', id], queryFn: () => api.get<ToyDetail>(`/catalog/${id}${activeKidId ? `?kidId=${activeKidId}` : ''}`) });
   const { width } = useWindowDimensions();
@@ -85,7 +85,10 @@ export default function ToyScreen() {
         <Button
           title="Add to my box"
           disabled={t.availableUnits === 0}
-          onPress={() => box.add({ id: t.id, name: t.name, creditCost: t.creditCost, image: t.images[0] })}
+          onPress={() => {
+            box.add({ id: t.id, name: t.name, creditCost: t.creditCost, image: t.images[0] });
+            if (!me) router.push('/signup');
+          }}
         />
       )}
       <Button title={wish.isSuccess ? 'Saved to wishlist ♥' : 'Save to wishlist'} variant="ghost" onPress={() => wish.mutate()} disabled={wish.isSuccess} />

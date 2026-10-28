@@ -70,3 +70,19 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 export const INTERACTION_TYPES = ['VIEW', 'WISHLIST', 'RENT', 'RATING'] as const;
 export type InteractionType = (typeof INTERACTION_TYPES)[number];
+
+/** Asked at "Get started": where the kid plays most. */
+export const PLAY_PLACES = ['INDOOR', 'OUTDOOR', 'BOTH'] as const;
+export type PlayPlace = (typeof PLAY_PLACES)[number];
+export const PLAY_PLACE_LABELS: Record<PlayPlace, string> = { INDOOR: 'Indoors', OUTDOOR: 'Outdoors', BOTH: 'Both' };
+
+/** Asked at "Get started": what the parent wants from play. */
+export const PARENT_GOALS = ['LEARNING', 'FUN', 'SCREEN_FREE', 'MOTOR_SKILLS', 'SOCIAL'] as const;
+export type ParentGoal = (typeof PARENT_GOALS)[number];
+export const PARENT_GOAL_LABELS: Record<ParentGoal, string> = {
+  LEARNING: 'Learning through play',
+  FUN: 'Pure fun',
+  SCREEN_FREE: 'Screen-free time',
+  MOTOR_SKILLS: 'Motor skills',
+  SOCIAL: 'Social play',
+};

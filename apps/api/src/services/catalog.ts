@@ -1,5 +1,5 @@
 import type { Prisma, Toy } from '@prisma/client';
-import { ageInMonths, creditCost, recommend, type Interest, type RecToy } from '@rentaltoys/shared';
+import { ageInMonths, creditCost, recommend, type ColorFilter, type Interest, type ParentGoal, type PlayPlace, type RecKid, type RecToy } from '@rentaltoys/shared';
 import { photoIdsInclude, photoUrls } from '../lib/images';
 import { prisma } from '../lib/prisma';
 
@@ -27,16 +27,24 @@ export async function rankForKid(kidId: string, toys: CatalogToy[], opts: { maxC
     include: { interactions: { where: { createdAt: { gte: new Date(Date.now() - 180 * 86_400_000) } } } },
   });
   const ageMonths = ageInMonths(kid.dateOfBirth);
-  const ranked = recommend<CatalogToy & RecToy>(
+  const ranked = rankForProfile(
     {
       ageMonths,
       interests: kid.interests as Interest[],
+      favoriteColors: kid.favoriteColors as ColorFilter[],
+      playPlace: kid.playPlace as PlayPlace | null,
+      goals: kid.goals as ParentGoal[],
       interactions: kid.interactions.map((i) => ({ toyId: i.toyId, type: i.type, value: i.value, createdAt: i.createdAt })),
     },
-    toys as (CatalogToy & RecToy)[],
+    toys,
     opts,
   );
   return { kid, ageMonths, ranked };
+}
+
+/** Ranks for any profile: a saved kid, or a guest's "Get started" answers before they sign up. */
+export function rankForProfile(profile: RecKid, toys: CatalogToy[], opts: { maxCredits?: number; limit?: number } = {}) {
+  return recommend<CatalogToy & RecToy>(profile, toys as (CatalogToy & RecToy)[], opts);
 }
 
 /** `base` is the API origin (lib/images baseUrl) used to build photo URLs. */

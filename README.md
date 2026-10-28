@@ -115,6 +115,27 @@ Schema changes ship as Prisma migrations in `apps/api/prisma/migrations`. Produc
 - **Security:** the API sends security headers (helmet), rate-limits login and signup (20 per 15 minutes per IP), and won't
   start in production with a weak `JWT_SECRET`.
 
+## Landing page and "Get started"
+
+Logged-out visitors (app and website) land on `/`. It has:
+- the brand at top left, with Home, About us, Plans (wide screens) and Login at top right;
+- a muted, auto-advancing carousel of 5 videos with arrows and dots;
+- the intro and a **Get started** button;
+- the 9 plans.
+
+**Get started** asks 4 quick questions:
+1. the kid's name, date of birth and (optionally) gender;
+2. favourite colours;
+3. toy types they love;
+4. where they play, what matters most, and a pincode check.
+
+It then shows a catalog ranked for those answers **without signing up**. Tapping + on a toy asks the parent
+to sign up, with the kid's answers already filled in, and the picked toy waits in their box. The answers
+(favourite colours, play place, goals) are saved on the kid profile and boost matching toys in "For you".
+
+**Videos:** put the 5 clips in `apps/api/media/landing/`, using the names and suggested free stock clips
+listed in that folder's README. A missing clip shows a coloured panel with its caption.
+
 ## Toy photos
 
 Staff add up to 6 photos per toy in the admin app: **Toys → open a toy → Photos**. They can take a photo with the

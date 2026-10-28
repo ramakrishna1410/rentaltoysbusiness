@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { z } from 'zod';
-import { INTERESTS } from '@rentaltoys/shared';
+import { COLOR_FILTERS, INTERESTS, PARENT_GOALS, PLAY_PLACES } from '@rentaltoys/shared';
 import { requireAuth, signToken } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
 import { prisma } from '../lib/prisma';
@@ -11,6 +11,9 @@ export const kidSchema = z.object({
   dateOfBirth: z.coerce.date().refine((d) => d <= new Date(), 'Date of birth is in the future'),
   gender: z.string().optional(),
   interests: z.array(z.enum(INTERESTS)).default([]),
+  favoriteColors: z.array(z.enum(COLOR_FILTERS)).max(5).default([]),
+  playPlace: z.enum(PLAY_PLACES).nullable().optional(),
+  goals: z.array(z.enum(PARENT_GOALS)).default([]),
 });
 
 const signupSchema = z.object({

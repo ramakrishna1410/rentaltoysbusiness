@@ -115,7 +115,20 @@ export function Loading() {
  * Catalog tile: photo with size/stock badges, a quick add-to-box button, name, age and why it was picked.
  * `style` lets grids control spacing (horizontal rows keep the default right margin).
  */
-export function ToyTile({ toy, onPress, width = 160, style }: { toy: ToyCardData; onPress?: () => void; width?: number; style?: StyleProp<ViewStyle> }) {
+export function ToyTile({
+  toy,
+  onPress,
+  onAdded,
+  width = 160,
+  style,
+}: {
+  toy: ToyCardData;
+  onPress?: () => void;
+  /** Runs after the + button puts the toy in the box (guests are sent to sign up). */
+  onAdded?: (toy: ToyCardData) => void;
+  width?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const box = useBox();
   const inBox = box.has(toy.id);
   const imgH = width * 0.85;
@@ -133,7 +146,10 @@ export function ToyTile({ toy, onPress, width = 160, style }: { toy: ToyCardData
           onPress={(e) => {
             e.stopPropagation?.();
             if (inBox) box.remove(toy.id);
-            else box.add({ id: toy.id, name: toy.name, creditCost: toy.creditCost, image: toy.images[0] });
+            else {
+              box.add({ id: toy.id, name: toy.name, creditCost: toy.creditCost, image: toy.images[0] });
+              onAdded?.(toy);
+            }
           }}
           style={[styles.addBtn, inBox && { backgroundColor: colors.success }]}
         >

@@ -80,3 +80,36 @@ describe('recommend (MMR)', () => {
     expect(head).toContain('puzzle');
   });
 });
+
+describe('Get started preferences', () => {
+  const plain = { ageMonths: 48, interests: [] as never[], interactions: [] as never[] };
+
+  it('boosts toys in the kid’s favourite colour and says why', () => {
+    const toys = [
+      toy('red-car', { colorType: 'SINGLE', primaryColor: 'RED' }),
+      toy('blue-car', { colorType: 'SINGLE', primaryColor: 'BLUE' }),
+    ];
+    const ranked = scoreToys({ ...plain, favoriteColors: ['RED'] }, toys, { now });
+    expect(ranked[0].toy.id).toBe('red-car');
+    expect(ranked[0].reasons).toContain('Loves red');
+  });
+
+  it('counts dual toys that include the favourite colour', () => {
+    const toys = [toy('red-yellow', { colorType: 'DUAL', primaryColor: 'RED', secondaryColor: 'YELLOW' }), toy('green', { colorType: 'SINGLE', primaryColor: 'GREEN' })];
+    expect(scoreToys({ ...plain, favoriteColors: ['YELLOW'] }, toys, { now })[0].toy.id).toBe('red-yellow');
+  });
+
+  it('outdoor kids see ride-ons higher; indoor kids see them lower', () => {
+    const toys = [toy('bike', { interestTags: ['OUTDOOR_RIDE_ON'] }), toy('blocks', { interestTags: ['BUILDING_BLOCKS'] })];
+    expect(scoreToys({ ...plain, playPlace: 'OUTDOOR' }, toys, { now })[0].toy.id).toBe('bike');
+    const indoor = scoreToys({ ...plain, interests: ['OUTDOOR_RIDE_ON', 'BUILDING_BLOCKS'] as never[], playPlace: 'INDOOR' }, toys, { now });
+    expect(indoor[0].toy.id).toBe('blocks');
+  });
+
+  it('a learning goal lifts STEM toys; screen-free lowers battery toys', () => {
+    const toys = [toy('abacus', { interestTags: ['EDUCATIONAL_STEM'] }), toy('plush', { material: 'FABRIC_PLUSH' })];
+    expect(scoreToys({ ...plain, goals: ['LEARNING'] }, toys, { now })[0].toy.id).toBe('abacus');
+    const e = [toy('robot', { powerType: 'ELECTRIC' }), toy('wood', { material: 'WOODEN' })];
+    expect(scoreToys({ ...plain, goals: ['SCREEN_FREE'] }, e, { now })[0].toy.id).toBe('wood');
+  });
+});

@@ -3,7 +3,9 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { errorHandler, HttpError, wrap } from './lib/http';
+import { baseUrl } from './lib/images';
 import { prisma } from './lib/prisma';
+import { MEDIA_DIR, landingSlides } from './landing';
 import { adminRouter } from './routes/admin';
 import { authRouter } from './routes/auth';
 import { catalogRouter } from './routes/catalog';
@@ -28,6 +30,11 @@ export function createApp() {
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
   });
+  app.get('/landing', (req, res) => {
+    res.json({ slides: landingSlides(baseUrl(req)) });
+  });
+  // Landing videos; express.static handles Range requests, which video players need for seeking.
+  app.use('/media', express.static(MEDIA_DIR, { maxAge: '7d' }));
   app.use('/auth', authRouter);
   app.use('/kids', kidsRouter);
   app.use('/catalog', catalogRouter);

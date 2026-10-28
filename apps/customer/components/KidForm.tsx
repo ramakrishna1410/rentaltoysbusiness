@@ -1,15 +1,31 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { INTERESTS, INTEREST_LABELS, ageInMonths, type Interest } from '@rentaltoys/shared';
+import { INTERESTS, INTEREST_LABELS, ageInMonths, type ColorFilter, type Interest, type ParentGoal, type PlayPlace } from '@rentaltoys/shared';
+import { ColorPrefPicker, GoalPicker, PlayPlacePicker } from './PrefPickers';
 import { Chip, Field, H2, Muted } from './ui';
 
 export interface KidDraft {
   name: string;
   dateOfBirth: string;
   interests: Interest[];
+  favoriteColors: ColorFilter[];
+  playPlace: PlayPlace | null;
+  goals: ParentGoal[];
 }
 
-export const emptyKid = (): KidDraft => ({ name: '', dateOfBirth: '', interests: [] });
+export const emptyKid = (): KidDraft => ({ name: '', dateOfBirth: '', interests: [], favoriteColors: [], playPlace: null, goals: [] });
+
+/** The body the API's kid schema expects. */
+export function kidBody(k: KidDraft) {
+  return {
+    name: k.name.trim(),
+    dateOfBirth: parseDob(k.dateOfBirth)!.toISOString(),
+    interests: k.interests,
+    favoriteColors: k.favoriteColors,
+    playPlace: k.playPlace,
+    goals: k.goals,
+  };
+}
 
 const INTEREST_ICONS: Record<Interest, string> = {
   ELECTRIC: '🔋',
@@ -63,6 +79,12 @@ export function KidForm({ value, onChange }: { value: KidDraft; onChange(v: KidD
         ))}
       </View>
       {value.interests.length === 0 ? <Text style={{ color: '#a08f80', marginTop: 4 }}>Not sure? Skip — we will learn from what they rent.</Text> : null}
+      <H2>Favourite colours</H2>
+      <ColorPrefPicker value={value.favoriteColors} onChange={(favoriteColors) => onChange({ ...value, favoriteColors })} />
+      <H2>Where do they play most?</H2>
+      <PlayPlacePicker value={value.playPlace} onChange={(playPlace) => onChange({ ...value, playPlace })} />
+      <H2>What matters most to you?</H2>
+      <GoalPicker value={value.goals} onChange={(goals) => onChange({ ...value, goals })} />
     </View>
   );
 }

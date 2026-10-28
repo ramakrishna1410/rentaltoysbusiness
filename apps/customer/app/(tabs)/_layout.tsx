@@ -11,7 +11,7 @@ export default function TabsLayout() {
   const { ready, me } = useAuth();
   const box = useBox();
   if (!ready) return <Loading />;
-  if (!me) return <Redirect href="/welcome" />;
+  if (!me) return <Redirect href="/" />;
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: colors.primary, headerTintColor: colors.ink }}>
       <Tabs.Screen name="home" options={{ title: 'For you', tabBarIcon: icon('★') }} />

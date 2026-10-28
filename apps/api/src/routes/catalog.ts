@@ -1,13 +1,22 @@
 import type { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
-import { CATALOG_SORTS, COLOR_FILTERS, INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, paginate, remaining } from '@rentaltoys/shared';
+import { CATALOG_SORTS, COLOR_FILTERS, INTERESTS, PARENT_GOALS, PLAY_PLACES, MATERIALS, PIECE_TYPES, POWER_TYPES, paginate, remaining } from '@rentaltoys/shared';
 import { optionalAuth, requireAuth } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
 import { baseUrl, photoIdsInclude } from '../lib/images';
 import { prisma } from '../lib/prisma';
-import { availableCatalog, availableCount, rankForKid, toyCard } from '../services/catalog';
+import { availableCatalog, availableCount, rankForKid, rankForProfile, toyCard } from '../services/catalog';
 import { currentSubscription, limitsFor } from '../services/subscriptions';
+
+/** Comma-separated list query param, e.g. ?colors=RED,PINK */
+function csv<T extends string>(values: readonly [T, ...T[]]) {
+  return z
+    .string()
+    .optional()
+    .transform((s) => (s ? s.split(',').filter(Boolean) : []))
+    .pipe(z.array(z.enum(values)));
+}
 
 const filterSchema = z.object({
   kidId: z.string().optional(),
@@ -19,6 +28,12 @@ const filterSchema = z.object({
   q: z.string().optional(),
   color: z.enum(COLOR_FILTERS).optional(),
   sort: z.enum(CATALOG_SORTS).default('best'),
+  // Guest answers from "Get started" (ranking only, never filtering): used when there's no kidId.
+  kidAgeMonths: z.coerce.number().int().min(0).max(216).optional(),
+  likes: csv(INTERESTS),
+  colors: csv(COLOR_FILTERS),
+  playPlace: z.enum(PLAY_PLACES).optional(),
+  goals: csv(PARENT_GOALS),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -65,8 +80,12 @@ catalogRouter.get(
     if (f.kidId) await ensureOwnKid(req.user?.id, f.kidId);
 
     let cards: ReturnType<typeof toyCard>[];
-    if (f.sort === 'best' && f.kidId) {
-      const { ranked } = await rankForKid(f.kidId, toys, { limit: 12 });
+    const guest =
+      !f.kidId && f.kidAgeMonths !== undefined
+        ? { ageMonths: f.kidAgeMonths, interests: f.likes, favoriteColors: f.colors, playPlace: f.playPlace ?? null, goals: f.goals, interactions: [] }
+        : null;
+    if (f.sort === 'best' && (f.kidId || guest)) {
+      const ranked = f.kidId ? (await rankForKid(f.kidId, toys, { limit: 12 })).ranked : rankForProfile(guest!, toys, { limit: 12 });
       const rankedIds = new Set(ranked.map((r) => r.toy.id));
       // Toys outside the kid's age window still show, after the ranked ones.
       const rest = toys.filter((t) => !rankedIds.has(t.id)).sort((a, b) => b.rentalCount - a.rentalCount);

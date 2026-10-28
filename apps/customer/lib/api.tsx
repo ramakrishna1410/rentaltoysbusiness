@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { createApiClient, type Interest } from '@rentaltoys/shared';
+import { createApiClient, type ColorFilter, type Interest, type ParentGoal, type PlayPlace } from '@rentaltoys/shared';
 import { storage } from './storage';
 
 const TOKEN_KEY = 'rt.customer.token';
@@ -12,6 +12,9 @@ export interface Kid {
   name: string;
   dateOfBirth: string;
   interests: Interest[];
+  favoriteColors: ColorFilter[];
+  playPlace: PlayPlace | null;
+  goals: ParentGoal[];
 }
 
 export interface Me {

@@ -1,15 +1,24 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { KidForm, emptyKid, kidError, parseDob, type KidDraft } from '../components/KidForm';
+import { KidForm, emptyKid, kidBody, kidError, type KidDraft } from '../components/KidForm';
 import { Button, ErrorText, Field, H1, Muted, Screen } from '../components/ui';
 import { api, useAuth } from '../lib/api';
+import { useBox } from '../lib/box';
+import { useDraft } from '../lib/draft';
 
 export default function Signup() {
   const { signIn } = useAuth();
+  const box = useBox();
+  const { draft, clear } = useDraft();
   const [step, setStep] = useState<1 | 2>(1);
-  const [parent, setParent] = useState({ name: '', email: '', phone: '', password: '', addressLine: '', area: '', pincode: '' });
-  const [kid, setKid] = useState<KidDraft>(emptyKid());
+  const [parent, setParent] = useState({ name: '', email: '', phone: '', password: '', addressLine: '', area: '', pincode: draft?.pincode ?? '' });
+  // "Get started" answers carry over, so the parent only reviews them here.
+  const [kid, setKid] = useState<KidDraft>(
+    draft
+      ? { name: draft.kidName, dateOfBirth: draft.dateOfBirth, interests: draft.interests, favoriteColors: draft.favoriteColors, playPlace: draft.playPlace, goals: draft.goals }
+      : emptyKid(),
+  );
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof parent) => (v: string) => setParent((p) => ({ ...p, [k]: v }));
@@ -36,10 +45,12 @@ export default function Signup() {
         pincode: parent.pincode || undefined,
         addressLine: parent.addressLine || undefined,
         area: parent.area || undefined,
-        kids: [{ name: kid.name.trim(), dateOfBirth: parseDob(kid.dateOfBirth)!.toISOString(), interests: kid.interests }],
+        kids: [kidBody(kid)],
       });
       await signIn(res.token);
-      router.replace('/(tabs)/home');
+      clear();
+      // Toys picked as a guest are still in the box: take them straight to it.
+      router.replace(box.toys.length ? '/(tabs)/mytoys' : '/(tabs)/home');
     } catch (e) {
       setError(e);
     } finally {
@@ -66,6 +77,7 @@ export default function Signup() {
       ) : (
         <View>
           <H1>About your kid</H1>
+          {draft ? <Muted style={{ marginBottom: 8 }}>Filled in from your answers. Check and change anything.</Muted> : null}
           <KidForm value={kid} onChange={setKid} />
           <ErrorText error={error} />
           <Button title="Create account" onPress={submit} loading={busy} disabled={!!kidError(kid)} style={{ marginTop: 16 }} />

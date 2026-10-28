@@ -5,9 +5,11 @@
 //   - age fit: hard filter around the toy's age range, soft preference for the middle of it
 //   - popularity within the catalog (rentals + Bayesian-smoothed rating)
 //   - availability and newness boosts
+//   - favourite colours, play place and parent goals from "Get started"
 // followed by an MMR re-rank so the first screen is varied instead of ten copies of one category.
 
-import { INTEREST_LABELS, type Interest, type InteractionType, type Material, type PowerType } from '../enums';
+import { COLOR_LABELS, matchesColor, type ColorFilter, type ColorType, type ToyColor } from '../colors';
+import { INTEREST_LABELS, type Interest, type InteractionType, type Material, type ParentGoal, type PlayPlace, type PowerType } from '../enums';
 import { ageBandFor } from '../toy';
 
 export interface RecToy {
@@ -23,6 +25,9 @@ export interface RecToy {
   availableUnits: number;
   creditCost: number;
   createdAt: Date;
+  colorType?: ColorType;
+  primaryColor?: ToyColor | null;
+  secondaryColor?: ToyColor | null;
 }
 
 export interface RecInteraction {
@@ -37,6 +42,9 @@ export interface RecKid {
   ageMonths: number;
   interests: Interest[];
   interactions: RecInteraction[];
+  favoriteColors?: ColorFilter[];
+  playPlace?: PlayPlace | null;
+  goals?: ParentGoal[];
 }
 
 export interface RecOptions {
@@ -55,6 +63,7 @@ export interface RecBreakdown {
   popularity: number;
   availability: number;
   newness: number;
+  color: number;
 }
 
 export interface Recommendation<T extends RecToy = RecToy> {
@@ -64,7 +73,21 @@ export interface Recommendation<T extends RecToy = RecToy> {
   reasons: string[];
 }
 
-export const REC_WEIGHTS: RecBreakdown = { ageFit: 0.35, interest: 0.35, popularity: 0.15, availability: 0.1, newness: 0.05 };
+export const REC_WEIGHTS: RecBreakdown = { ageFit: 0.3, interest: 0.3, popularity: 0.12, availability: 0.08, newness: 0.05, color: 0.15 };
+
+/** How parent goals and play place nudge the interest vector (added on top of picked interests). */
+const GOAL_NUDGES: Record<ParentGoal, Partial<Record<Interest, number>>> = {
+  LEARNING: { EDUCATIONAL_STEM: 0.5, PUZZLES: 0.4 },
+  FUN: {},
+  SCREEN_FREE: { WOODEN: 0.3, ARTS_CRAFTS: 0.3, BUILDING_BLOCKS: 0.3 },
+  MOTOR_SKILLS: { BUILDING_BLOCKS: 0.4, OUTDOOR_RIDE_ON: 0.4 },
+  SOCIAL: { PRETEND_PLAY: 0.5, MUSICAL: 0.3 },
+};
+const PLAY_PLACE_NUDGES: Record<PlayPlace, Partial<Record<Interest, number>>> = {
+  INDOOR: {},
+  OUTDOOR: { OUTDOOR_RIDE_ON: 0.6 },
+  BOTH: { OUTDOOR_RIDE_ON: 0.2 },
+};
 
 const INTERACTION_WEIGHT: Record<InteractionType, number> = { VIEW: 0.1, WISHLIST: 0.5, RENT: 1, RATING: 1 };
 const AGE_TOLERANCE_BELOW = 3;
@@ -84,6 +107,8 @@ export function toyFeatures(toy: Pick<RecToy, 'material' | 'powerType' | 'intere
 export function interestVector(kid: RecKid, toysById: Map<string, RecToy>, now: Date, halfLifeDays = 30): Map<Interest, number> {
   const v = new Map<Interest, number>();
   for (const i of kid.interests) v.set(i, 1);
+  const nudges = [...(kid.goals ?? []).map((g) => GOAL_NUDGES[g]), kid.playPlace ? PLAY_PLACE_NUDGES[kid.playPlace] : {}];
+  for (const n of nudges) for (const [k, w] of Object.entries(n)) v.set(k as Interest, (v.get(k as Interest) ?? 0) + w!);
   for (const ev of kid.interactions) {
     const toy = toysById.get(ev.toyId);
     if (!toy) continue;
@@ -153,18 +178,29 @@ export function scoreToys<T extends RecToy>(kid: RecKid, toys: T[], opts: RecOpt
     const ageDays = (now.getTime() - toy.createdAt.getTime()) / DAY_MS;
     const newness = ageDays <= 30 ? 1 : ageDays >= 90 ? 0 : 1 - (ageDays - 30) / 60;
 
-    const breakdown: RecBreakdown = { ageFit: age, interest, popularity, availability, newness };
+    const colorInfo = { colorType: toy.colorType ?? 'MULTI', primaryColor: toy.primaryColor ?? null, secondaryColor: toy.secondaryColor ?? null };
+    const lovedColor = (kid.favoriteColors ?? []).find((c) => matchesColor(colorInfo, c));
+    const color = lovedColor ? 1 : 0;
+
+    const breakdown: RecBreakdown = { ageFit: age, interest, popularity, availability, newness, color };
     let score =
       REC_WEIGHTS.ageFit * age +
       REC_WEIGHTS.interest * interest +
       REC_WEIGHTS.popularity * popularity +
       REC_WEIGHTS.availability * availability +
-      REC_WEIGHTS.newness * newness;
+      REC_WEIGHTS.newness * newness +
+      REC_WEIGHTS.color * color;
     if (rented.has(toy.id)) score *= 0.7;
+    // Mostly-indoor kids rarely use ride-ons; screen-free parents lean away from battery toys.
+    if (kid.playPlace === 'INDOOR' && features.has('OUTDOOR_RIDE_ON')) score *= 0.85;
+    if (kid.goals?.includes('SCREEN_FREE') && toy.powerType === 'ELECTRIC') score *= 0.9;
 
     const reasons: string[] = [];
     const matched = kid.interests.filter((i) => features.has(i)).map((i) => INTEREST_LABELS[i]);
     if (matched.length) reasons.push(`Matches: ${matched.join(', ')}`);
+    if (lovedColor) {
+      reasons.push(lovedColor === 'MULTI' ? 'Bright multicolour' : lovedColor === 'DUAL' ? 'Two-tone colours' : `Loves ${COLOR_LABELS[lovedColor].toLowerCase()}`);
+    }
     if (age >= 0.75) reasons.push('Great for their age');
     if (newness === 1) reasons.push('New arrival');
     if (rented.has(toy.id)) reasons.push('Rented before');
