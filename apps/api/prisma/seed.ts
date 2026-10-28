@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { DURATIONS, TIERS, allowedCycles, binQr, quotePrice, sizeClassFor, unitQr } from '@rentaltoys/shared';
+import { isMain } from '../src/lib/is-main';
 import { prisma } from '../src/lib/prisma';
 import { storeQr } from '../src/lib/qr';
 import { pickCost } from '../src/routes/admin';
@@ -173,7 +174,7 @@ async function main() {
   console.log('Logins: admin@rentaltoys.in / Admin@1234, staff@rentaltoys.in / Staff@1234, parent@example.com / Parent@1234');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main()
     .catch((e) => {
       console.error(e);

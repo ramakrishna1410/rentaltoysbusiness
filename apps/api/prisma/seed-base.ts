@@ -3,6 +3,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { DURATIONS, TIERS, allowedCycles, quotePrice } from '@rentaltoys/shared';
+import { isMain } from '../src/lib/is-main';
 import { prisma } from '../src/lib/prisma';
 import { seedWarehouse } from './seed';
 
@@ -54,7 +55,7 @@ export async function seedBase(env: NodeJS.ProcessEnv = process.env) {
   return ensureAdmin(env);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   seedBase()
     .then((admin) => console.log(`Base data ready. Admin: ${admin.email}`))
     .catch((e) => {

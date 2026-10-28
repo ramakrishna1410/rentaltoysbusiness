@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DURATION_CODES, type BillingCycle, type DurationCode, type TierCode } from '@rentaltoys/shared';
+import type { BillingCycle, DurationCode, TierCode } from '@rentaltoys/shared';
 import { Button, Card, Chip, ErrorText, H1, H2, Loading, Muted, Screen } from '../../components/ui';
 import { api } from '../../lib/api';
 import { CYCLE_LABEL, inr, type Plan, type PlanDuration, type PlanTier, type Subscription } from '../../lib/subscription';
@@ -27,9 +27,21 @@ export default function Plans() {
   if (plans.isLoading) return <Loading />;
   if (!plans.data) return <ErrorText error={plans.error} />;
   const { tiers, durations } = plans.data;
-  const dur = durations.find((d) => d.code === duration)!;
-  const plan = plans.data.plans.find((p) => p.tierCode === tier && p.durationCode === duration)!;
-  const price = plan.prices.find((p) => p.billingCycle === cycle) ?? plan.prices[0];
+  const dur = durations.find((d) => d.code === duration);
+  const tierInfo = tiers.find((t) => t.code === tier);
+  const plan = plans.data.plans.find((p) => p.tierCode === tier && p.durationCode === duration);
+  const price = plan?.prices.find((p) => p.billingCycle === cycle) ?? plan?.prices[0];
+  if (!dur || !tierInfo || !plan || !price) {
+    return (
+      <Screen>
+        <H1>Choose your plan</H1>
+        <Card>
+          <Muted>Plans aren't set up yet. Please check back soon.</Muted>
+          {__DEV__ ? <Muted style={{ marginTop: 6 }}>Developer: run `npm run db:setup` to load plans and demo data.</Muted> : null}
+        </Card>
+      </Screen>
+    );
+  }
   const pickDuration = (d: DurationCode) => {
     setDuration(d);
     setCycle('MONTHLY');
@@ -40,9 +52,9 @@ export default function Plans() {
       <H1>Choose your plan</H1>
       <Muted>Longer plans cost less per month and add rollover, pause and buy-out discounts.</Muted>
       <View style={styles.segment}>
-        {DURATION_CODES.map((d) => (
-          <Pressable key={d} onPress={() => pickDuration(d)} style={[styles.segItem, d === duration && styles.segOn]}>
-            <Text style={[styles.segText, d === duration && { color: '#fff' }]}>{durations.find((x) => x.code === d)!.name}</Text>
+        {durations.map((d) => (
+          <Pressable key={d.code} onPress={() => pickDuration(d.code)} style={[styles.segItem, d.code === duration && styles.segOn]}>
+            <Text style={[styles.segText, d.code === duration && { color: '#fff' }]}>{d.name}</Text>
           </Pressable>
         ))}
       </View>
@@ -63,7 +75,8 @@ export default function Plans() {
       </Card>
 
       {tiers.map((t) => {
-        const p = plans.data.plans.find((x) => x.tierCode === t.code && x.durationCode === duration)!;
+        const p = plans.data.plans.find((x) => x.tierCode === t.code && x.durationCode === duration);
+        if (!p?.prices.length) return null;
         const monthly = Math.min(...p.prices.map((x) => Math.round(x.totalAmount / dur.months)));
         const on = t.code === tier;
         return (
@@ -103,7 +116,7 @@ export default function Plans() {
         <Muted>You already have a {current.data.plan.tier.name} {current.data.plan.duration.name} plan.</Muted>
       ) : (
         <Button
-          title={`Subscribe to ${tiers.find((t) => t.code === tier)!.name} ${dur.name}`}
+          title={`Subscribe to ${tierInfo.name} ${dur.name}`}
           loading={subscribe.isPending}
           onPress={() => subscribe.mutate({ planId: plan.id, billingCycle: price.billingCycle })}
         />
