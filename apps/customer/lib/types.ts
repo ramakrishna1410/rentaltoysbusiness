@@ -1,4 +1,4 @@
-import type { Interest, Material, PieceType, PowerType, SizeClass } from '@rentaltoys/shared';
+import type { ColorType, Interest, Material, PieceType, PowerType, SizeClass, ToyColor } from '@rentaltoys/shared';
 
 export interface ToyCard {
   id: string;
@@ -7,6 +7,9 @@ export interface ToyCard {
   brand: string | null;
   images: string[];
   color: string;
+  colorType: ColorType;
+  primaryColor: ToyColor | null;
+  secondaryColor: ToyColor | null;
   ageMinMonths: number;
   ageMaxMonths: number;
   material: Material;

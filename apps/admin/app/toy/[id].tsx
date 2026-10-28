@@ -38,7 +38,7 @@ export default function ToyAdmin() {
   const rows: [string, string][] = [
     ['SKU', t.sku],
     ['Brand', t.brand ?? '—'],
-    ['Colour', t.color],
+    ['Colour', `${t.color} (${t.colorType === 'MULTI' ? 'multicolour' : t.colorType === 'DUAL' ? 'dual colour' : 'base colour'})`],
     ['Dimensions (L×B×H)', `${t.lengthCm} × ${t.breadthCm} × ${t.heightCm} cm`],
     ['Weight', `${t.weightKg} kg`],
     ['Size class', t.sizeClass],
@@ -54,6 +54,8 @@ export default function ToyAdmin() {
   return (
     <Screen>
       <H1>{t.name}</H1>
+      {!t.isActive ? <Text style={{ color: colors.danger, fontWeight: '700', marginBottom: 6 }}>Hidden from customers</Text> : null}
+      <Button title="Edit details" variant="outline" onPress={() => router.push(`/toy/edit/${t.id}`)} />
       <Card>
         {rows.map(([k, v]) => (
           <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, gap: 12 }}>

@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
-import { CATALOG_SORTS, INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, paginate, remaining } from '@rentaltoys/shared';
+import { CATALOG_SORTS, COLOR_FILTERS, INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, paginate, remaining } from '@rentaltoys/shared';
 import { optionalAuth, requireAuth } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
 import { baseUrl, photoIdsInclude } from '../lib/images';
@@ -17,10 +17,18 @@ const filterSchema = z.object({
   pieceType: z.enum(PIECE_TYPES).optional(),
   interest: z.enum(INTERESTS).optional(),
   q: z.string().optional(),
+  color: z.enum(COLOR_FILTERS).optional(),
   sort: z.enum(CATALOG_SORTS).default('best'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
+
+/** Same rule as matchesColor in @rentaltoys/shared, as a database filter. */
+function colorWhere(color: (typeof COLOR_FILTERS)[number] | undefined): Prisma.ToyWhereInput {
+  if (!color) return {};
+  if (color === 'DUAL' || color === 'MULTI') return { colorType: color };
+  return { OR: [{ primaryColor: color }, { colorType: 'DUAL', secondaryColor: color }] };
+}
 
 export const catalogRouter = Router();
 catalogRouter.use(optionalAuth);
@@ -47,7 +55,11 @@ catalogRouter.get(
       pieceType: f.pieceType,
       interestTags: f.interest ? { has: f.interest } : undefined,
       ...(f.ageMonths !== undefined ? { ageMinMonths: { lte: f.ageMonths }, ageMaxMonths: { gte: f.ageMonths } } : {}),
-      ...(f.q ? { OR: [{ name: { contains: f.q, mode: 'insensitive' } }, { brand: { contains: f.q, mode: 'insensitive' } }] } : {}),
+      // Both of these use OR internally, so they're combined with AND rather than spread.
+      AND: [
+        colorWhere(f.color),
+        f.q ? { OR: [{ name: { contains: f.q, mode: 'insensitive' } }, { brand: { contains: f.q, mode: 'insensitive' } }] } : {},
+      ],
     };
     const toys = await availableCatalog(where);
     if (f.kidId) await ensureOwnKid(req.user?.id, f.kidId);

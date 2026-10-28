@@ -1,17 +1,20 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import {
   CATALOG_SORTS,
   CATALOG_SORT_LABELS,
+  COLOR_FILTERS,
   INTEREST_LABELS,
   INTERESTS,
   type CatalogSort,
+  type ColorFilter,
   type Interest,
   type Material,
   type Page,
 } from '@rentaltoys/shared';
+import { ColorChip } from '../../components/ColorChip';
 import { KidSwitcher } from '../../components/KidSwitcher';
 import { Chip, ErrorText, Field, Muted, SkeletonTile, ToyTile } from '../../components/ui';
 import { api, useAuth } from '../../lib/api';
@@ -40,6 +43,18 @@ function useDebounced<T>(value: T, ms = 300): T {
   return v;
 }
 
+/** One labelled, horizontally scrolling row of filter chips. */
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text style={{ width: 56, color: colors.muted, fontWeight: '700', marginBottom: 8 }}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+        {children}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function Catalog() {
   const { activeKidId } = useAuth();
   const { width } = useWindowDimensions();
@@ -48,6 +63,7 @@ export default function Catalog() {
   const [material, setMaterial] = useState<Material | null>(null);
   const [electric, setElectric] = useState<boolean | null>(null);
   const [interest, setInterest] = useState<Interest | null>(null);
+  const [color, setColor] = useState<ColorFilter | null>(null);
   const [sort, setSort] = useState<CatalogSort>('best');
 
   const params = useMemo(() => {
@@ -56,9 +72,10 @@ export default function Catalog() {
     if (material) p.set('material', material);
     if (electric !== null) p.set('powerType', electric ? 'ELECTRIC' : 'NON_ELECTRIC');
     if (interest) p.set('interest', interest);
+    if (color) p.set('color', color);
     if (query) p.set('q', query);
     return p.toString();
-  }, [activeKidId, material, electric, interest, query, sort]);
+  }, [activeKidId, material, electric, interest, color, query, sort]);
 
   const toys = useInfiniteQuery({
     queryKey: ['catalog', params],
@@ -77,26 +94,28 @@ export default function Catalog() {
     <View>
       <KidSwitcher />
       <Field label="Search" placeholder="Search toys or brands" value={q} onChangeText={setQ} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <FilterRow label="Type">
         <Chip label="🔋 Electric" selected={electric === true} onPress={() => setElectric(electric === true ? null : true)} />
         <Chip label="No batteries" selected={electric === false} onPress={() => setElectric(electric === false ? null : false)} />
         {MATERIAL_FILTERS.map(([m, label]) => (
           <Chip key={m} label={label} selected={material === m} onPress={() => setMaterial(material === m ? null : m)} />
         ))}
-      </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      </FilterRow>
+      <FilterRow label="Loves">
         {INTERESTS.filter((i) => i !== 'ELECTRIC' && i !== 'WOODEN').map((i) => (
           <Chip key={i} label={INTEREST_LABELS[i]} selected={interest === i} onPress={() => setInterest(interest === i ? null : i)} />
         ))}
-      </ScrollView>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-        <Text style={{ color: colors.muted, fontWeight: '700', marginRight: 8, marginBottom: 8 }}>Sort</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {CATALOG_SORTS.map((s) => (
-            <Chip key={s} label={s === 'best' && !activeKidId ? 'Popular' : CATALOG_SORT_LABELS[s]} selected={sort === s} onPress={() => setSort(s)} />
-          ))}
-        </ScrollView>
-      </View>
+      </FilterRow>
+      <FilterRow label="Colour">
+        {COLOR_FILTERS.map((c) => (
+          <ColorChip key={c} color={c} selected={color === c} onPress={() => setColor(color === c ? null : c)} />
+        ))}
+      </FilterRow>
+      <FilterRow label="Sort">
+        {CATALOG_SORTS.map((s) => (
+          <Chip key={s} label={s === 'best' && !activeKidId ? 'Popular' : CATALOG_SORT_LABELS[s]} selected={sort === s} onPress={() => setSort(s)} />
+        ))}
+      </FilterRow>
       <Muted style={{ marginBottom: 10 }}>
         {total === undefined ? ' ' : `${total} toy${total === 1 ? '' : 's'} available${sort === 'best' && activeKidId ? ' · best matches first' : ''}`}
       </Muted>

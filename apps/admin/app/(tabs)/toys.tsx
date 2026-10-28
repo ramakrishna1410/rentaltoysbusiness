@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import {
   ADMIN_TOY_FILTERS,
@@ -8,13 +8,16 @@ import {
   ADMIN_TOY_SORTS,
   ADMIN_TOY_SORT_LABELS,
   AGE_BANDS,
+  COLOR_FILTERS,
   STAGE_LABELS,
   TOY_STAGES,
   type AdminToyFilter,
   type AdminToySort,
+  type ColorFilter,
   type Material,
   type Page,
 } from '@rentaltoys/shared';
+import { ColorChip } from '../../components/ColorChip';
 import { STAGE_COLORS } from '../../components/StageBadge';
 import { ToyImage } from '../../components/ToyImage';
 import { Button, Chip, ErrorText, Field, Muted } from '../../components/ui';
@@ -95,6 +98,18 @@ function Pager({ page, totalPages, onPage }: { page: number; totalPages: number;
   );
 }
 
+/** One labelled, horizontally scrolling row of filter chips. */
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text style={{ width: 64, color: colors.muted, fontWeight: '700', marginBottom: 8 }}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+        {children}
+      </ScrollView>
+    </View>
+  );
+}
+
 function ToyGridTile({ toy, width }: { toy: Toy; width: number }) {
   return (
     <Pressable
@@ -130,11 +145,12 @@ export default function Toys() {
   const [filter, setFilter] = useState<AdminToyFilter | null>(null);
   const [ageBand, setAgeBand] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
+  const [color, setColor] = useState<ColorFilter | null>(null);
   const [sort, setSort] = useState<AdminToySort>('name');
   const [page, setPage] = useState(1);
 
   // Any change to the search or filters starts again from page 1.
-  useEffect(() => setPage(1), [query, filter, ageBand, material, sort]);
+  useEffect(() => setPage(1), [query, filter, ageBand, material, color, sort]);
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ sort, page: String(page), pageSize: String(PAGE_SIZE) });
@@ -142,8 +158,9 @@ export default function Toys() {
     if (filter) p.set('filter', filter);
     if (ageBand) p.set('ageBand', ageBand);
     if (material) p.set('material', material);
+    if (color) p.set('color', color);
     return p.toString();
-  }, [query, filter, ageBand, material, sort, page]);
+  }, [query, filter, ageBand, material, color, sort, page]);
 
   const toys = useQuery({
     queryKey: ['admin-toys', params],
@@ -160,27 +177,31 @@ export default function Toys() {
     <View>
       <Button title="+ Add new toy" onPress={() => router.push('/toy/new')} />
       <Field label="Search" placeholder="Name, SKU or brand" value={q} onChangeText={setQ} autoCapitalize="none" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <FilterRow label="Show">
         {ADMIN_TOY_FILTERS.map((f) => (
           <Chip key={f} label={ADMIN_TOY_FILTER_LABELS[f]} selected={filter === f} onPress={() => setFilter(filter === f ? null : f)} />
         ))}
-      </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      </FilterRow>
+      <FilterRow label="Age">
         {AGE_BANDS.map((b) => (
           <Chip key={b.code} label={b.label} selected={ageBand === b.code} onPress={() => setAgeBand(ageBand === b.code ? null : b.code)} />
         ))}
+      </FilterRow>
+      <FilterRow label="Material">
         {MATERIALS.map(([m, label]) => (
           <Chip key={m} label={label} selected={material === m} onPress={() => setMaterial(material === m ? null : m)} />
         ))}
-      </ScrollView>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ color: colors.muted, fontWeight: '700', marginRight: 8, marginBottom: 8 }}>Sort</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {ADMIN_TOY_SORTS.map((s) => (
-            <Chip key={s} label={ADMIN_TOY_SORT_LABELS[s]} selected={sort === s} onPress={() => setSort(s)} />
-          ))}
-        </ScrollView>
-      </View>
+      </FilterRow>
+      <FilterRow label="Colour">
+        {COLOR_FILTERS.map((c) => (
+          <ColorChip key={c} color={c} selected={color === c} onPress={() => setColor(color === c ? null : c)} />
+        ))}
+      </FilterRow>
+      <FilterRow label="Sort">
+        {ADMIN_TOY_SORTS.map((s) => (
+          <Chip key={s} label={ADMIN_TOY_SORT_LABELS[s]} selected={sort === s} onPress={() => setSort(s)} />
+        ))}
+      </FilterRow>
       <Muted style={{ marginBottom: 10 }}>
         {data
           ? data.total === 0

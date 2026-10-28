@@ -53,6 +53,27 @@ enum Interest {
   ARTS_CRAFTS
 }
 
+enum ColorType {
+  SINGLE
+  DUAL
+  MULTI
+}
+
+enum ToyColor {
+  RED
+  ORANGE
+  YELLOW
+  GREEN
+  BLUE
+  PURPLE
+  PINK
+  BROWN
+  NATURAL_WOOD
+  BLACK
+  WHITE
+  GREY
+}
+
 enum ToyStage {
   PROCUREMENT
   STORAGE
@@ -168,7 +189,11 @@ model Toy {
   brand             String?
   description       String        @default("")
   images            String[]
+  /// Display text derived from the fields below ("Red", "Black & White", "Multicolour").
   color             String
+  colorType         ColorType @default(MULTI)
+  primaryColor      ToyColor?
+  secondaryColor    ToyColor?
   lengthCm          Float
   breadthCm         Float
   heightCm          Float

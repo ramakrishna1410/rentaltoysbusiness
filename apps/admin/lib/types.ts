@@ -1,4 +1,4 @@
-import type { Interest, Material, PieceType, PowerType, SizeClass, ToyStage, ZoneType } from '@rentaltoys/shared';
+import type { ColorType, Interest, Material, PieceType, PowerType, SizeClass, ToyColor, ToyStage, ZoneType } from '@rentaltoys/shared';
 
 export interface Toy {
   id: string;
@@ -8,6 +8,10 @@ export interface Toy {
   description: string;
   images: string[];
   color: string;
+  colorType: ColorType;
+  primaryColor: ToyColor | null;
+  secondaryColor: ToyColor | null;
+  isActive: boolean;
   lengthCm: number;
   breadthCm: number;
   heightCm: number;

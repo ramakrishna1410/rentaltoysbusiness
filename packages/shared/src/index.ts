@@ -8,3 +8,4 @@ export * from './algorithms/slotting';
 export * from './algorithms/recommend';
 export * from './client';
 export * from './paging';
+export * from './colors';

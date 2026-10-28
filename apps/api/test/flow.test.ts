@@ -70,7 +70,7 @@ describe('personalised catalog', () => {
       .post('/admin/toys')
       .set(auth(adminToken))
       .send({
-        sku: 'TEST-NEW', name: 'Fresh Arrival', color: 'Red', lengthCm: 10, breadthCm: 10, heightCm: 10, weightKg: 0.3,
+        sku: 'TEST-NEW', name: 'Fresh Arrival', colorType: 'SINGLE', primaryColor: 'RED', lengthCm: 10, breadthCm: 10, heightCm: 10, weightKg: 0.3,
         manufacturingDate: '2026-01-01', ageMinMonths: 12, ageMaxMonths: 48, material: 'PLASTIC', powerType: 'NON_ELECTRIC',
         pieceType: 'SINGLE', pieceCount: 1, mrp: 300,
       })
@@ -85,7 +85,7 @@ describe('personalised catalog', () => {
       .post('/admin/toys')
       .set(auth(adminToken))
       .send({
-        sku: 'BAD', name: 'Bad toy', color: 'Red', lengthCm: 10, breadthCm: 10, heightCm: 10, weightKg: 0.3, manufacturingDate: '2026-01-01',
+        sku: 'BAD', name: 'Bad toy', colorType: 'SINGLE', primaryColor: 'RED', lengthCm: 10, breadthCm: 10, heightCm: 10, weightKg: 0.3, manufacturingDate: '2026-01-01',
         ageMinMonths: 12, ageMaxMonths: 48, material: 'PLASTIC', powerType: 'ELECTRIC', pieceType: 'MULTI', pieceCount: 1, mrp: 300,
       })
       .expect(400);

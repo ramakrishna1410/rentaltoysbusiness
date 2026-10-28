@@ -13,8 +13,14 @@ import {
   SUBSCRIPTION_STATUSES,
   TOY_STAGES,
   ZONE_TYPES,
+  COLOR_FILTERS,
+  COLOR_TYPES,
+  TOY_COLORS,
   ageBandFor,
   binQr,
+  colorError,
+  colorLabel,
+  matchesColor,
   paginate,
   sizeClassFor,
 } from '@rentaltoys/shared';
@@ -38,7 +44,9 @@ const toySchema = z
     brand: z.string().optional(),
     description: z.string().default(''),
     images: z.array(z.string().url()).default([]),
-    color: z.string().min(1),
+    colorType: z.enum(COLOR_TYPES),
+    primaryColor: z.enum(TOY_COLORS).nullable().default(null),
+    secondaryColor: z.enum(TOY_COLORS).nullable().default(null),
     lengthCm: z.number().positive(),
     breadthCm: z.number().positive(),
     heightCm: z.number().positive(),
@@ -62,13 +70,36 @@ const toySchema = z
     message: 'Single-piece toys have 1 piece; multi-piece toys have more than 1',
     path: ['pieceCount'],
   })
-  .refine((t) => t.powerType === 'NON_ELECTRIC' || !!t.batteryType, { message: 'Electric toys need a battery type', path: ['batteryType'] });
+  .refine((t) => t.powerType === 'NON_ELECTRIC' || !!t.batteryType, { message: 'Electric toys need a battery type', path: ['batteryType'] })
+  .superRefine((t, ctx) => {
+    const err = colorError(t);
+    if (err) ctx.addIssue({ code: 'custom', message: err, path: ['primaryColor'] });
+  });
+
+/** Normalises a validated toy for the database: derived colour label and size class, cleared battery fields. */
+function toyData(t: z.output<typeof toySchema>) {
+  return {
+    ...t,
+    brand: t.brand?.trim() || null,
+    sku: t.sku.trim().toUpperCase(),
+    color: colorLabel(t),
+    batteryType: t.powerType === 'ELECTRIC' ? t.batteryType : null,
+    batteryCount: t.powerType === 'ELECTRIC' ? (t.batteryCount ?? null) : null,
+    sizeClass: sizeClassFor(t, t.weightKg),
+  };
+}
+
+async function assertSkuFree(sku: string, exceptId?: string) {
+  const clash = await prisma.toy.findFirst({ where: { sku: sku.trim().toUpperCase(), id: exceptId ? { not: exceptId } : undefined } });
+  if (clash) throw new HttpError(409, `SKU ${clash.sku} is already used by "${clash.name}"`);
+}
 
 const toyListSchema = z.object({
   q: z.string().trim().optional(),
   filter: z.enum(ADMIN_TOY_FILTERS).optional(),
   ageBand: z.enum(AGE_BANDS.map((b) => b.code) as [string, ...string[]]).optional(),
   material: z.enum(MATERIALS).optional(),
+  color: z.enum(COLOR_FILTERS).optional(),
   sort: z.enum(ADMIN_TOY_SORTS).default('name'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(24),
@@ -98,6 +129,7 @@ adminRouter.get(
         unitsByStage: units.reduce<Record<string, number>>((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {}),
       }))
       .filter((t) => !f.ageBand || ageBandFor(t.ageMinMonths, t.ageMaxMonths) === f.ageBand)
+      .filter((t) => !f.color || matchesColor(t, f.color))
       .filter((t) =>
         f.filter === 'noPhotos' ? t.photoCount === 0 : f.filter === 'outOfStock' ? t.availableUnits === 0 : f.filter === 'hasDamaged' ? (t.unitsByStage.DAMAGE ?? 0) > 0 : true,
       );
@@ -179,7 +211,8 @@ adminRouter.post(
   '/toys',
   wrap(async (req, res) => {
     const body = parse(toySchema, req.body);
-    const toy = await prisma.toy.create({ data: { ...body, sizeClass: sizeClassFor(body, body.weightKg) } });
+    await assertSkuFree(body.sku);
+    const toy = await prisma.toy.create({ data: toyData(body) });
     res.status(201).json(toy);
   }),
 );
@@ -189,11 +222,19 @@ adminRouter.patch(
   wrap(async (req, res) => {
     const existing = await prisma.toy.findUnique({ where: { id: req.params.id }, include: { _count: { select: { units: true } } } });
     if (!existing) throw new HttpError(404, 'Toy not found');
-    const merged = parse(toySchema, { ...existing, brand: existing.brand ?? undefined, batteryType: existing.batteryType ?? undefined, batteryCount: existing.batteryCount ?? undefined, ...req.body });
+    // Unsent fields keep their current values; the merged toy is validated as a whole.
+    const merged = parse(toySchema, {
+      ...existing,
+      brand: existing.brand ?? undefined,
+      batteryType: existing.batteryType ?? undefined,
+      batteryCount: existing.batteryCount ?? undefined,
+      ...req.body,
+    });
     if (merged.pieceCount !== existing.pieceCount && existing._count.units > 0) {
       throw new HttpError(400, 'Piece count cannot change once units with piece QR labels exist');
     }
-    res.json(await prisma.toy.update({ where: { id: existing.id }, data: { ...merged, sizeClass: sizeClassFor(merged, merged.weightKg) } }));
+    await assertSkuFree(merged.sku, existing.id);
+    res.json(await prisma.toy.update({ where: { id: existing.id }, data: toyData(merged) }));
   }),
 );
 
