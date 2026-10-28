@@ -6,3 +6,4 @@ export * from './plans';
 export * from './allowance';
 export * from './algorithms/slotting';
 export * from './algorithms/recommend';
+export * from './client';

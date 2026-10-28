@@ -12,5 +12,10 @@
     "dev:customer": "npm run start -w @rentaltoys/customer",
     "dev:admin": "npm run start -w @rentaltoys/admin",
     "db:setup": "npm run db:push -w @rentaltoys/api && npm run db:seed -w @rentaltoys/api"
+  },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5"
   }
 }
