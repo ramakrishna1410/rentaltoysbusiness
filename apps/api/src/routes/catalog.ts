@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { INTERESTS, MATERIALS, PIECE_TYPES, POWER_TYPES, remaining } from '@rentaltoys/shared';
 import { optionalAuth, requireAuth } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
+import { baseUrl, photoIdsInclude } from '../lib/images';
 import { prisma } from '../lib/prisma';
 import { availableCatalog, availableCount, rankForKid, toyCard } from '../services/catalog';
 import { currentSubscription, limitsFor } from '../services/subscriptions';
@@ -35,6 +36,7 @@ catalogRouter.get(
   '/',
   wrap(async (req, res) => {
     const f = parse(filterSchema, req.query);
+    const base = baseUrl(req);
     const where: Prisma.ToyWhereInput = {
       material: f.material,
       powerType: f.powerType,
@@ -51,12 +53,12 @@ catalogRouter.get(
       // Toys outside the kid's age window still show, after the ranked ones.
       const rest = toys.filter((t) => !rankedIds.has(t.id)).sort((a, b) => b.rentalCount - a.rentalCount);
       res.json([
-        ...ranked.map((r) => toyCard(r.toy, { score: r.score, reasons: r.reasons })),
-        ...rest.map((t) => toyCard(t)),
+        ...ranked.map((r) => toyCard(r.toy, base, { score: r.score, reasons: r.reasons })),
+        ...rest.map((t) => toyCard(t, base)),
       ]);
       return;
     }
-    res.json(toys.sort((a, b) => b.rentalCount - a.rentalCount).map((t) => toyCard(t)));
+    res.json(toys.sort((a, b) => b.rentalCount - a.rentalCount).map((t) => toyCard(t, base)));
   }),
 );
 
@@ -67,6 +69,7 @@ catalogRouter.get(
   wrap(async (req, res) => {
     const { kidId } = parse(z.object({ kidId: z.string() }), req.query);
     await ensureOwnKid(req.user!.id, kidId);
+    const base = baseUrl(req);
     const toys = await availableCatalog();
     const sub = await currentSubscription(req.user!.id);
     const maxCredits = sub && sub.status === 'ACTIVE' ? limitsFor(sub).toyCredits : undefined;
@@ -79,9 +82,9 @@ catalogRouter.get(
       kid: { id: kid.id, name: kid.name, ageMonths, interests: kid.interests },
       allowance: sub && sub.status === 'ACTIVE' ? remaining(sub, limitsFor(sub)) : null,
       sections: [
-        { key: 'picked', title: `Picked for ${kid.name}`, toys: ranked.slice(0, 10).map((r) => toyCard(r.toy, { score: r.score, reasons: r.reasons })) },
-        { key: 'popular', title: 'Popular for this age', toys: popular.map((t) => toyCard(t)) },
-        { key: 'new', title: 'New arrivals', toys: newest.map((t) => toyCard(t)) },
+        { key: 'picked', title: `Picked for ${kid.name}`, toys: ranked.slice(0, 10).map((r) => toyCard(r.toy, base, { score: r.score, reasons: r.reasons })) },
+        { key: 'popular', title: 'Popular for this age', toys: popular.map((t) => toyCard(t, base)) },
+        { key: 'new', title: 'New arrivals', toys: newest.map((t) => toyCard(t, base)) },
       ],
     });
   }),
@@ -90,7 +93,7 @@ catalogRouter.get(
 catalogRouter.get(
   '/:id',
   wrap(async (req, res) => {
-    const toy = await prisma.toy.findFirst({ where: { id: req.params.id, isActive: true } });
+    const toy = await prisma.toy.findFirst({ where: { id: req.params.id, isActive: true }, include: { photos: photoIdsInclude } });
     if (!toy) throw new HttpError(404, 'Toy not found');
     const availableUnits = await availableCount(toy.id);
     const kidId = typeof req.query.kidId === 'string' ? req.query.kidId : undefined;
@@ -99,7 +102,7 @@ catalogRouter.get(
       if (kid) await prisma.interaction.create({ data: { userId: req.user.id, kidId, toyId: toy.id, type: 'VIEW' } });
     }
     res.json({
-      ...toyCard({ ...toy, availableUnits, creditCost: toy.sizeClass === 'LARGE' ? 2 : 1 }),
+      ...toyCard({ ...toy, availableUnits, creditCost: toy.sizeClass === 'LARGE' ? 2 : 1 }, baseUrl(req)),
       description: toy.description,
       lengthCm: toy.lengthCm,
       breadthCm: toy.breadthCm,

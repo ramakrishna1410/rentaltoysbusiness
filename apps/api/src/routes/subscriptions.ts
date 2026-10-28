@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { BILLING_CYCLES, addMonths, checkOrderAllowance, creditCost, instalmentSchedule, remaining } from '@rentaltoys/shared';
 import { requireAuth } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
+import { baseUrl, photoIdsInclude, photoUrls } from '../lib/images';
 import { prisma } from '../lib/prisma';
 import { currentSubscription, limitsFor, subscriptionInclude } from '../services/subscriptions';
 
@@ -25,10 +26,10 @@ export const subscriptionsRouter = Router();
 subscriptionsRouter.use(requireAuth());
 
 /** Units currently at the customer's home under this subscription. */
-async function toysAtHome(subscriptionId: string) {
+async function toysAtHome(subscriptionId: string, base = '') {
   const items = await prisma.orderItem.findMany({
     where: { direction: 'OUT', order: { subscriptionId }, unit: { stage: 'WITH_CUSTOMER' } },
-    include: { toy: true, order: { select: { createdAt: true } } },
+    include: { toy: { include: { photos: photoIdsInclude } }, order: { select: { createdAt: true } } },
     orderBy: { order: { createdAt: 'asc' } },
   });
   // A unit can appear in several past orders; the latest OUT is the one that matters.
@@ -42,7 +43,7 @@ async function toysAtHome(subscriptionId: string) {
     unitId: i.unitId!,
     toyId: i.toyId,
     name: i.toy.name,
-    images: i.toy.images,
+    images: photoUrls(base, i.toy),
     creditCost: creditCost(i.toy.sizeClass),
     returnRequested: returns.some((r) => r.unitId === i.unitId && r.order.createdAt > i.order.createdAt),
   }));
@@ -56,7 +57,7 @@ subscriptionsRouter.get(
       res.json(null);
       return;
     }
-    res.json({ ...sub, remaining: remaining(sub, limitsFor(sub)), toysAtHome: await toysAtHome(sub.id) });
+    res.json({ ...sub, remaining: remaining(sub, limitsFor(sub)), toysAtHome: await toysAtHome(sub.id, baseUrl(req)) });
   }),
 );
 
@@ -102,12 +103,17 @@ const orderSchema = z.object({
 ordersRouter.get(
   '/',
   wrap(async (req, res) => {
+    const base = baseUrl(req);
+    const orders = await prisma.order.findMany({
+      where: { subscription: { userId: req.user!.id } },
+      include: { items: { include: { toy: { select: { name: true, images: true, photos: photoIdsInclude } } } } },
+      orderBy: { createdAt: 'desc' },
+    });
     res.json(
-      await prisma.order.findMany({
-        where: { subscription: { userId: req.user!.id } },
-        include: { items: { include: { toy: { select: { name: true, images: true } } } } },
-        orderBy: { createdAt: 'desc' },
-      }),
+      orders.map((o) => ({
+        ...o,
+        items: o.items.map((i) => ({ ...i, toy: { name: i.toy.name, images: photoUrls(base, i.toy) } })),
+      })),
     );
   }),
 );

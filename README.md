@@ -115,6 +115,24 @@ Schema changes ship as Prisma migrations in `apps/api/prisma/migrations`. Produc
 - **Security:** the API sends security headers (helmet), rate-limits login and signup (20 per 15 minutes per IP), and won't
   start in production with a weak `JWT_SECRET`.
 
+## Toy photos
+
+Staff add up to 6 photos per toy in the admin app: **Toys → open a toy → Photos**. They can take a photo with the
+camera on a phone, or choose from the gallery (or upload files in the browser). Photos are resized on the device to
+about 1200 px JPEG before upload and stored in Postgres (`ToyImage`). They're served from `GET /images/:id`, and the
+first photo is the cover shown in the catalog. Toys without photos show a "photo coming soon" tile.
+
+## Testing on a phone
+
+The QR code Expo shows must contain your PC's **Wi-Fi IP**, not `127.0.0.1`. Use the phone scripts:
+
+- `npm run phone:customer` / `npm run phone:admin`: LAN mode. If the QR code still shows the wrong IP,
+  set `REACT_NATIVE_PACKAGER_HOSTNAME` to your Wi-Fi IP first.
+- `npm run tunnel:customer` / `npm run tunnel:admin`: works on any network, but is slower.
+
+Also set `EXPO_PUBLIC_API_URL=http://<Wi-Fi IP>:4000` in `apps\customer\.env` and `apps\admin\.env`, and allow TCP
+ports 4000, 8081 and 8082 through Windows Firewall on private networks.
+
 ## Subscription plans
 
 There are 3 durations × 3 tiers, which makes 9 plans. All numbers are placeholders seeded into the DB, and admins can change prices

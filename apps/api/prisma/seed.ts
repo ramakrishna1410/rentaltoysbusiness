@@ -6,11 +6,12 @@ import { prisma } from '../src/lib/prisma';
 import { storeQr } from '../src/lib/qr';
 import { pickCost } from '../src/routes/admin';
 import { createUnit, moveUnit, slotSuggestions } from '../src/services/inventory';
-import { SEED_TOYS, imageFor } from './seed-data';
+import { SEED_TOYS } from './seed-data';
 
 export async function resetDatabase() {
   // Children before parents.
   await prisma.interaction.deleteMany();
+  await prisma.toyImage.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.invoice.deleteMany();
@@ -137,7 +138,7 @@ export async function seedInventory(adminId: string) {
     const dims = { lengthCm: s.dims[0], breadthCm: s.dims[1], heightCm: s.dims[2] };
     const toy = await prisma.toy.create({
       data: {
-        sku: s.sku, name: s.name, brand: s.brand, description: s.description, images: imageFor(s.sku), color: s.color,
+        sku: s.sku, name: s.name, brand: s.brand, description: s.description, color: s.color,
         ...dims, weightKg: s.weightKg, manufacturingDate: new Date(s.mfg), ageMinMonths: s.age[0], ageMaxMonths: s.age[1],
         material: s.material, powerType: s.powerType, batteryType: s.battery?.[0], batteryCount: s.battery?.[1],
         pieceType: s.pieceType, pieceCount: s.pieceCount, interestTags: s.interests, tags: s.tags,

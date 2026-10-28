@@ -11,11 +11,18 @@
     "dev:api": "npm run dev -w @rentaltoys/api",
     "dev:customer": "npm run start -w @rentaltoys/customer -- --port 8081",
     "dev:admin": "npm run start -w @rentaltoys/admin -- --port 8082",
+    "phone:customer": "npm run start -w @rentaltoys/customer -- --lan --port 8081",
+    "phone:admin": "npm run start -w @rentaltoys/admin -- --lan --port 8082",
+    "tunnel:customer": "npm run start -w @rentaltoys/customer -- --tunnel --port 8081",
+    "tunnel:admin": "npm run start -w @rentaltoys/admin -- --tunnel --port 8082",
     "db:setup": "npm run db:push -w @rentaltoys/api && npm run db:seed -w @rentaltoys/api"
   },
   "overrides": {
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5"
+  },
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3"
   }
 }

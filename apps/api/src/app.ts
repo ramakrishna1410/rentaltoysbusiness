@@ -17,6 +17,8 @@ export function createApp() {
   // QR images and label sheets are loaded by the apps from another origin.
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: corsOrigins() }));
+  // Photo uploads arrive as base64 JSON; only that route gets the larger body limit.
+  app.use(/^\/admin\/toys\/[^/]+\/photos$/, express.json({ limit: '5mb' }));
   app.use(express.json({ limit: '1mb' }));
 
   const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
@@ -43,6 +45,17 @@ export function createApp() {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       if (req.params.format === 'svg') res.type('image/svg+xml').send(img.svg);
       else res.type('image/png').send(Buffer.from(img.png));
+    }),
+  );
+
+  app.get(
+    '/images/:id',
+    wrap(async (req, res) => {
+      const img = await prisma.toyImage.findUnique({ where: { id: req.params.id } });
+      if (!img) throw new HttpError(404, 'Image not found');
+      // Ids are never reused: a replaced photo gets a new id, so the bytes behind a URL never change.
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.type(img.mimeType).send(Buffer.from(img.data));
     }),
   );
 

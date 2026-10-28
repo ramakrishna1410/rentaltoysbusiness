@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { STAGE_LABELS, formatAgeRange, type ToyStage } from '@rentaltoys/shared';
+import { ToyImage } from '../../components/ToyImage';
 import { Button, Card, ErrorText, Field, Loading, Muted, Screen } from '../../components/ui';
 import { api } from '../../lib/api';
 import { colors } from '../../lib/theme';
@@ -21,7 +22,9 @@ export default function Toys() {
       <ErrorText error={toys.error} />
       {list?.map((t) => (
         <Pressable key={t.id} onPress={() => router.push(`/toy/${t.id}`)}>
-          <Card>
+          <Card style={{ flexDirection: 'row', gap: 12 }}>
+            <ToyImage compact toy={t} style={{ width: 64, height: 64, borderRadius: 10 }} />
+            <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: '800', color: colors.ink }}>{t.name}</Text>
             <Muted>
               {t.sku} · {formatAgeRange(t.ageMinMonths, t.ageMaxMonths)} · {t.material.toLowerCase()} · {t.powerType === 'ELECTRIC' ? 'electric' : 'non-electric'} ·{' '}
@@ -33,6 +36,7 @@ export default function Toys() {
                   {STAGE_LABELS[s as ToyStage]}: {n}
                 </Text>
               ))}
+            </View>
             </View>
           </Card>
         </Pressable>

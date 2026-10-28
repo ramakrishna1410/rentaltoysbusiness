@@ -1,8 +1,9 @@
 import type { Prisma, Toy } from '@prisma/client';
 import { ageInMonths, creditCost, recommend, type Interest, type RecToy } from '@rentaltoys/shared';
+import { photoIdsInclude, photoUrls } from '../lib/images';
 import { prisma } from '../lib/prisma';
 
-export type CatalogToy = Toy & { availableUnits: number; creditCost: number };
+export type CatalogToy = Toy & { availableUnits: number; creditCost: number; photos?: { id: string }[] };
 
 /** Units a customer can actually get: in STORAGE and not already reserved for an order. */
 export const availableUnitWhere = { stage: 'STORAGE', reservedForOrderId: null } satisfies Prisma.ToyUnitWhereInput;
@@ -10,7 +11,7 @@ export const availableUnitWhere = { stage: 'STORAGE', reservedForOrderId: null }
 export async function availableCatalog(where: Prisma.ToyWhereInput = {}): Promise<CatalogToy[]> {
   const toys = await prisma.toy.findMany({
     where: { isActive: true, ...where, units: { some: availableUnitWhere } },
-    include: { _count: { select: { units: { where: availableUnitWhere } } } },
+    include: { _count: { select: { units: { where: availableUnitWhere } } }, photos: photoIdsInclude },
     orderBy: { name: 'asc' },
   });
   return toys.map(({ _count, ...toy }) => ({ ...toy, availableUnits: _count.units, creditCost: creditCost(toy.sizeClass) }));
@@ -38,13 +39,14 @@ export async function rankForKid(kidId: string, toys: CatalogToy[], opts: { maxC
   return { kid, ageMonths, ranked };
 }
 
-export function toyCard(toy: CatalogToy, extra: { score?: number; reasons?: string[] } = {}) {
+/** `base` is the API origin (lib/images baseUrl) used to build photo URLs. */
+export function toyCard(toy: CatalogToy, base: string, extra: { score?: number; reasons?: string[] } = {}) {
   return {
     id: toy.id,
     sku: toy.sku,
     name: toy.name,
     brand: toy.brand,
-    images: toy.images,
+    images: photoUrls(base, toy),
     color: toy.color,
     ageMinMonths: toy.ageMinMonths,
     ageMaxMonths: toy.ageMaxMonths,

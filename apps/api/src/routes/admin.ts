@@ -16,6 +16,7 @@ import {
 import { requireAdmin, requireStaff } from '../lib/auth';
 import { HttpError, parse, wrap } from '../lib/http';
 import { prisma } from '../lib/prisma';
+import { MAX_PHOTOS_PER_TOY, MAX_PHOTO_BYTES, baseUrl, detectImage, photoIdsInclude, photoUrls } from '../lib/images';
 import { storeQr } from '../lib/qr';
 import { createUnit, getUnit, inventorySummary, moveUnit, reslotReport, resolveScan, slotSuggestions } from '../services/inventory';
 import { subscriptionInclude } from '../services/subscriptions';
@@ -60,11 +61,16 @@ const toySchema = z
 
 adminRouter.get(
   '/toys',
-  wrap(async (_req, res) => {
-    const toys = await prisma.toy.findMany({ orderBy: { name: 'asc' }, include: { units: { select: { stage: true } } } });
+  wrap(async (req, res) => {
+    const toys = await prisma.toy.findMany({
+      orderBy: { name: 'asc' },
+      include: { units: { select: { stage: true } }, photos: photoIdsInclude },
+    });
+    const base = baseUrl(req);
     res.json(
-      toys.map(({ units, ...t }) => ({
+      toys.map(({ units, photos, ...t }) => ({
         ...t,
+        images: photoUrls(base, { images: t.images, photos }),
         unitsByStage: units.reduce<Record<string, number>>((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {}),
       })),
     );
@@ -76,10 +82,61 @@ adminRouter.get(
   wrap(async (req, res) => {
     const toy = await prisma.toy.findUnique({
       where: { id: req.params.id },
-      include: { units: { include: { bin: true }, orderBy: { createdAt: 'desc' } } },
+      include: { units: { include: { bin: true }, orderBy: { createdAt: 'desc' } }, photos: photoIdsInclude },
     });
     if (!toy) throw new HttpError(404, 'Toy not found');
-    res.json(toy);
+    const base = baseUrl(req);
+    const { photos, ...rest } = toy;
+    res.json({ ...rest, images: photoUrls(base, toy), photos: photos.map((p) => ({ id: p.id, url: `${base}/images/${p.id}` })) });
+  }),
+);
+
+// ---------- Toy photos (stored in Postgres, served from GET /images/:id) ----------
+
+adminRouter.post(
+  '/toys/:id/photos',
+  wrap(async (req, res) => {
+    const body = parse(
+      z.object({ data: z.string().min(1), width: z.number().int().positive().optional(), height: z.number().int().positive().optional() }),
+      req.body,
+    );
+    const toy = await prisma.toy.findUnique({ where: { id: req.params.id }, include: { _count: { select: { photos: true } } } });
+    if (!toy) throw new HttpError(404, 'Toy not found');
+    if (toy._count.photos >= MAX_PHOTOS_PER_TOY) throw new HttpError(400, `A toy can have at most ${MAX_PHOTOS_PER_TOY} photos`);
+    const buf = Buffer.from(body.data.replace(/^data:[^;]+;base64,/, ''), 'base64');
+    if (buf.length > MAX_PHOTO_BYTES) throw new HttpError(400, 'Photo is larger than 3 MB');
+    const mimeType = detectImage(buf);
+    if (!mimeType) throw new HttpError(400, 'Only JPEG, PNG or WebP photos are allowed');
+    const last = await prisma.toyImage.findFirst({ where: { toyId: toy.id }, orderBy: { sortOrder: 'desc' } });
+    const photo = await prisma.toyImage.create({
+      data: { toyId: toy.id, data: new Uint8Array(buf), mimeType, width: body.width, height: body.height, sortOrder: (last?.sortOrder ?? -1) + 1 },
+      select: { id: true, sortOrder: true },
+    });
+    res.status(201).json({ ...photo, url: `${baseUrl(req)}/images/${photo.id}` });
+  }),
+);
+
+adminRouter.delete(
+  '/toys/:id/photos/:photoId',
+  wrap(async (req, res) => {
+    const deleted = await prisma.toyImage.deleteMany({ where: { id: req.params.photoId, toyId: req.params.id } });
+    if (deleted.count === 0) throw new HttpError(404, 'Photo not found');
+    res.status(204).end();
+  }),
+);
+
+/** Reorders photos; the first id becomes the cover shown in the catalog. */
+adminRouter.put(
+  '/toys/:id/photos/order',
+  wrap(async (req, res) => {
+    const { photoIds } = parse(z.object({ photoIds: z.array(z.string()).min(1) }), req.body);
+    const existing = await prisma.toyImage.findMany({ where: { toyId: req.params.id }, select: { id: true } });
+    const ids = new Set(existing.map((p) => p.id));
+    if (photoIds.length !== ids.size || !photoIds.every((id) => ids.has(id))) {
+      throw new HttpError(400, 'Send every photo id of this toy exactly once');
+    }
+    await prisma.$transaction(photoIds.map((id, sortOrder) => prisma.toyImage.update({ where: { id }, data: { sortOrder } })));
+    res.json({ ok: true });
   }),
 );
 

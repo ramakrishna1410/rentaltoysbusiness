@@ -22,9 +22,6 @@ export interface SeedToy {
   rentals: number;
 }
 
-const img = (seed: string) => `https://picsum.photos/seed/${seed}/600/600`;
-export const imageFor = (sku: string) => [img(sku)];
-
 // Demo catalog. Dimensions are boxed L×B×H in cm.
 export const SEED_TOYS: SeedToy[] = [
   { sku: 'WD-ABACUS-01', name: 'Wooden Rainbow Abacus', brand: 'Shumee', description: 'Counting frame with 100 beads for early maths.', color: 'Multicolour', dims: [30, 8, 25], weightKg: 0.8, mfg: '2025-11-10', age: [24, 72], material: 'WOODEN', powerType: 'NON_ELECTRIC', pieceType: 'SINGLE', pieceCount: 1, interests: ['EDUCATIONAL_STEM'], tags: ['maths', 'counting'], mrp: 899, units: 3, rentals: 40 },

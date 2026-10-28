@@ -1,7 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { INTEREST_LABELS, formatAgeRange } from '@rentaltoys/shared';
+import { ToyImage } from '../../components/ToyImage';
 import { Button, Card, Chip, ErrorText, H1, Loading, Muted, Screen } from '../../components/ui';
 import { api, useAuth } from '../../lib/api';
 import { useBox } from '../../lib/box';
@@ -17,11 +19,14 @@ export default function ToyScreen() {
   const { activeKidId } = useAuth();
   const box = useBox();
   const toy = useQuery({ queryKey: ['toy', id], queryFn: () => api.get<ToyDetail>(`/catalog/${id}${activeKidId ? `?kidId=${activeKidId}` : ''}`) });
+  const { width } = useWindowDimensions();
+  const [photoIdx, setPhotoIdx] = useState(0);
   const wish = useMutation({ mutationFn: () => api.post(`/catalog/${id}/wishlist`, { kidId: activeKidId ?? undefined }) });
 
   if (toy.isLoading) return <Loading />;
   if (!toy.data) return <ErrorText error={toy.error} />;
   const t = toy.data;
+  const heroW = Math.min(width, 600) - 32;
   const rows: [string, string][] = [
     ['Age', formatAgeRange(t.ageMinMonths, t.ageMaxMonths)],
     ['Material', MATERIAL[t.material]],
@@ -34,7 +39,27 @@ export default function ToyScreen() {
 
   return (
     <Screen>
-      <Image source={{ uri: t.images[0] }} style={styles.hero} />
+      {t.images.length > 1 ? (
+        <View style={{ marginBottom: 16 }}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => setPhotoIdx(Math.round(e.nativeEvent.contentOffset.x / heroW))}
+            onScroll={(e) => setPhotoIdx(Math.round(e.nativeEvent.contentOffset.x / heroW))}
+            scrollEventThrottle={64}
+          >
+            {t.images.map((uri) => (
+              <ToyImage key={uri} toy={t} uri={uri} style={[styles.hero, { width: heroW, height: heroW, marginBottom: 0 }]} />
+            ))}
+          </ScrollView>
+          <Text style={{ textAlign: 'center', color: colors.muted, marginTop: 6 }}>
+            {photoIdx + 1} / {t.images.length} · swipe for more
+          </Text>
+        </View>
+      ) : (
+        <ToyImage toy={t} style={[styles.hero, { width: heroW, height: heroW }]} />
+      )}
       <H1>{t.name}</H1>
       {t.brand ? <Muted>{t.brand}</Muted> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 10 }}>
@@ -69,6 +94,6 @@ export default function ToyScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { width: '100%', aspectRatio: 1, maxHeight: 420, borderRadius: radius.lg, marginBottom: 16, backgroundColor: colors.chip },
+  hero: { borderRadius: radius.lg, marginBottom: 16, backgroundColor: colors.chip },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
 });

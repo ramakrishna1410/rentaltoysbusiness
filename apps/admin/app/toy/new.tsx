@@ -26,7 +26,7 @@ const num = (s: string) => (s.trim() === '' ? NaN : Number(s));
 export default function NewToy() {
   const qc = useQueryClient();
   const [f, setF] = useState({
-    sku: '', name: '', brand: '', description: '', image: '', color: '',
+    sku: '', name: '', brand: '', description: '', color: '',
     lengthCm: '', breadthCm: '', heightCm: '', weightKg: '', manufacturingDate: '',
     ageMin: '', ageMax: '', mrp: '', batteryType: '', batteryCount: '', pieceCount: '1',
   });
@@ -49,7 +49,6 @@ export default function NewToy() {
         name: f.name.trim(),
         brand: f.brand || undefined,
         description: f.description,
-        images: f.image ? [f.image] : [],
         color: f.color,
         ...dims,
         weightKg: num(f.weightKg),
@@ -79,7 +78,6 @@ export default function NewToy() {
       <Field label="Brand" value={f.brand} onChangeText={set('brand')} />
       <Field label="Colour" value={f.color} onChangeText={set('color')} />
       <Field label="Description" multiline value={f.description} onChangeText={set('description')} />
-      <Field label="Image URL" autoCapitalize="none" value={f.image} onChangeText={set('image')} />
       <Field label="MRP (₹)" keyboardType="number-pad" value={f.mrp} onChangeText={set('mrp')} />
       <Field label="Manufacturing date (YYYY-MM-DD)" value={f.manufacturingDate} onChangeText={set('manufacturingDate')} />
 
@@ -143,6 +141,7 @@ export default function NewToy() {
         ))}
       </View>
 
+      <Muted>After saving you'll add photos on the toy's page (camera or gallery).</Muted>
       <ErrorText error={save.error} />
       <Button title="Save toy" loading={save.isPending} onPress={() => save.mutate()} disabled={!f.sku || !f.name || !dimsOk} />
     </Screen>

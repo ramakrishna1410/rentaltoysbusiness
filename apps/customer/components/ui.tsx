@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { formatAgeRange } from '@rentaltoys/shared';
 import { colors, radius } from '../lib/theme';
 import type { ToyCard as ToyCardData } from '../lib/types';
+import { ToyImage } from './ToyImage';
 
 export function Screen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
   if (!scroll) return <View style={styles.screen}>{children}</View>;
@@ -97,7 +98,7 @@ export function Loading() {
 export function ToyTile({ toy, onPress, width = 160 }: { toy: ToyCardData; onPress?: () => void; width?: number }) {
   return (
     <Pressable onPress={onPress} style={[styles.tile, { width }]}>
-      <Image source={{ uri: toy.images[0] }} style={{ width: '100%', height: width * 0.85, borderRadius: radius.md, backgroundColor: colors.chip }} />
+      <ToyImage toy={toy} style={{ width: '100%', height: width * 0.85, borderRadius: radius.md, backgroundColor: colors.chip }} />
       <Text numberOfLines={2} style={styles.tileTitle}>
         {toy.name}
       </Text>

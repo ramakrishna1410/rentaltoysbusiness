@@ -7,7 +7,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "web": { "bundler": "metro", "output": "single" },
-    "plugins": ["expo-router", "expo-secure-store", ["expo-camera", { "cameraPermission": "Allow camera access to scan toy, piece and bin QR labels." }]],
+    "plugins": ["expo-router", "expo-secure-store", ["expo-camera", { "cameraPermission": "Allow camera access to scan toy, piece and bin QR labels." }],
+      ["expo-image-picker", { "photosPermission": "Allow access to your photos to add toy pictures.", "cameraPermission": "Allow camera access to scan QR labels and take toy photos." }]],
     "experiments": { "typedRoutes": false }
   }
 }

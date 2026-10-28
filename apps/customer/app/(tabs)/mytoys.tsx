@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { ToyImage } from '../../components/ToyImage';
 import { Button, Card, Chip, ErrorText, H1, H2, Loading, Muted, Screen } from '../../components/ui';
 import { api, useAuth } from '../../lib/api';
 import { useBox } from '../../lib/box';
@@ -94,7 +95,7 @@ export default function MyToys() {
                 onPress={() => setReturning((r) => (on ? r.filter((x) => x !== t.unitId) : [...r, t.unitId]))}
               >
                 <Card style={[{ flexDirection: 'row', alignItems: 'center' }, on && { borderColor: colors.primary, borderWidth: 2 }]}>
-                  <Image source={{ uri: t.images[0] }} style={{ width: 56, height: 56, borderRadius: 10 }} />
+                  <ToyImage compact toy={t} style={{ width: 56, height: 56, borderRadius: 10 }} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={{ fontWeight: '700', color: colors.ink }}>{t.name}</Text>
                     <Muted>{t.returnRequested ? 'Pickup scheduled' : on ? 'Returning in this swap' : `${t.creditCost} credit${t.creditCost > 1 ? 's' : ''}`}</Muted>
@@ -110,7 +111,7 @@ export default function MyToys() {
       {box.toys.length === 0 ? <Muted>Add toys from the catalog to request a delivery.</Muted> : null}
       {box.toys.map((t) => (
         <Card key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {t.image ? <Image source={{ uri: t.image }} style={{ width: 48, height: 48, borderRadius: 10 }} /> : null}
+          <ToyImage compact toy={{ name: t.name, images: t.image ? [t.image] : [] }} style={{ width: 48, height: 48, borderRadius: 10 }} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontWeight: '700', color: colors.ink }}>{t.name}</Text>
             <Muted>{t.creditCost} credit{t.creditCost > 1 ? 's' : ''}</Muted>

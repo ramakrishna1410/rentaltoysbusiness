@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { formatAgeRange } from '@rentaltoys/shared';
+import { PhotoManager, type Photo } from '../../components/PhotoManager';
 import { StageBadge } from '../../components/StageBadge';
 import { Button, Card, ErrorText, Field, H1, H2, Loading, Muted, Screen } from '../../components/ui';
 import { api } from '../../lib/api';
@@ -12,7 +13,7 @@ import type { Toy, Unit } from '../../lib/types';
 export default function ToyAdmin() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
-  const toy = useQuery({ queryKey: ['admin-toy', id], queryFn: () => api.get<Toy & { units: Unit[] }>(`/admin/toys/${id}`) });
+  const toy = useQuery({ queryKey: ['admin-toy', id], queryFn: () => api.get<Toy & { units: Unit[]; photos: Photo[] }>(`/admin/toys/${id}`) });
   const [vendor, setVendor] = useState('');
   const [cost, setCost] = useState('');
   const [labels, setLabels] = useState('');
@@ -61,6 +62,8 @@ export default function ToyAdmin() {
           </View>
         ))}
       </Card>
+
+      <PhotoManager toyId={t.id} photos={t.photos} />
 
       <H2>Procure a unit</H2>
       <Card>

@@ -14,6 +14,7 @@ export interface ApiClient {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
+  put<T>(path: string, body?: unknown): Promise<T>;
   del<T>(path: string): Promise<T>;
   text(path: string): Promise<string>;
   url(path: string): string;
@@ -38,6 +39,7 @@ export function createApiClient(baseUrl: string, getToken: () => string | null):
     get: async (p) => json(await call('GET', p)),
     post: async (p, b) => json(await call('POST', p, b ?? {})),
     patch: async (p, b) => json(await call('PATCH', p, b ?? {})),
+    put: async (p, b) => json(await call('PUT', p, b ?? {})),
     del: async (p) => json(await call('DELETE', p)),
     text: async (p) => (await call('GET', p)).text(),
     url: (p) => `${base}${p}`,
