@@ -13,7 +13,8 @@ machine:
 
 Rules:
 - Use one-line commands wherever possible (chain with `&&`), each in its own `bash` code block so it can be copied alone.
-- Give the Windows (PowerShell) variant when a command differs (e.g. `cp` vs `copy`).
+- The developer works on Windows in **Command Prompt (cmd)**. Give the cmd variant whenever a command differs from
+  bash (e.g. `if not exist apps\api\.env copy apps\api\.env.example apps\api\.env`, backslash paths, no `cp`/`rm`/`export`).
 - Name the branch that holds the change.
 - Say clearly if a step resets local data (e.g. `npm run db:setup` wipes and reloads demo data).
 
