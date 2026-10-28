@@ -13,8 +13,9 @@ machine:
 
 Rules:
 - Use one-line commands wherever possible (chain with `&&`), each in its own `bash` code block so it can be copied alone.
-- The developer works on Windows in **Command Prompt (cmd)**. Give the cmd variant whenever a command differs from
-  bash (e.g. `if not exist apps\api\.env copy apps\api\.env.example apps\api\.env`, backslash paths, no `cp`/`rm`/`export`).
+- The developer works on Windows and switches between **PowerShell and Command Prompt**. Prefer commands that work in
+  both (e.g. `copy apps\api\.env.example apps\api\.env`, backslash paths; avoid `cp`, `rm`, `export`, `if` syntax).
+  Start each step list with `cd C:\Users\Shanmith\rentaltoysbusiness`, since new terminals open in the home folder.
 - Name the branch that holds the change.
 - Say clearly if a step resets local data (e.g. `npm run db:setup` wipes and reloads demo data).
 
