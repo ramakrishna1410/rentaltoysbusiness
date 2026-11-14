@@ -55,9 +55,25 @@ export async function seedBase(env: NodeJS.ProcessEnv = process.env) {
   return ensureAdmin(env);
 }
 
+/**
+ * `--on-start` runs on every deploy (free hosting has no shell): plans and warehouse are ensured, and the
+ * first admin only when ADMIN_* are set, so a missing admin never stops the API from starting.
+ */
+async function main() {
+  const onStart = process.argv.includes('--on-start');
+  const hasAdmin = !!(process.env.ADMIN_EMAIL && process.env.ADMIN_PHONE && process.env.ADMIN_PASSWORD);
+  if (onStart && !hasAdmin) {
+    await ensurePlans();
+    await ensureWarehouse();
+    return 'Base data ready (set ADMIN_EMAIL, ADMIN_PHONE and ADMIN_PASSWORD to create the first admin).';
+  }
+  const admin = await seedBase();
+  return `Base data ready. Admin: ${admin.email}`;
+}
+
 if (isMain(import.meta.url)) {
-  seedBase()
-    .then((admin) => console.log(`Base data ready. Admin: ${admin.email}`))
+  main()
+    .then((msg) => console.log(msg))
     .catch((e) => {
       console.error(e);
       process.exit(1);

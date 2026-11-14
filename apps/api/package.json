@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
-    "start:prod": "prisma migrate deploy && tsx src/server.ts",
+    "start:prod": "prisma migrate deploy && tsx prisma/seed-base.ts --on-start && tsx src/server.ts",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
