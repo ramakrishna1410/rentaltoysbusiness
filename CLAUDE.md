@@ -1,11 +1,21 @@
 # Working agreement
 
+## One shared branch: `main`
+
+The team works on a single branch, `main`. No feature branches, no pull requests.
+
+- Before starting work: `git checkout main && git pull`.
+- When done (after `npm test` and `npm run typecheck` pass): `git add -A && git commit -m "..." && git push`.
+- If the push is rejected because someone else pushed first: `git pull && git push`. If `git pull` reports a conflict,
+  resolve it, keeping both people's changes, and re-run the checks before pushing.
+- Claude sessions also commit and push to `main`. Say in the reply what was pushed.
+
 ## After every code change: give local setup and test steps
 
 Whenever code is changed and pushed, end the reply with a **step-by-step procedure** the team can follow on their own
 machine:
 
-1. Pull the code (first-time clone and later pulls).
+1. Pull the code (`git pull`; first-time clone for new team members).
 2. Install and prepare (dependencies, database, env files), including any new step this change needs (new env var,
    migration, re-seed).
 3. Run the API, the customer app and the admin app.
@@ -16,7 +26,8 @@ Rules:
 - The developer works on Windows and switches between **PowerShell and Command Prompt**. Prefer commands that work in
   both (e.g. `copy apps\api\.env.example apps\api\.env`, backslash paths; avoid `cp`, `rm`, `export`, `if` syntax).
   Start each step list with `cd C:\Users\Shanmith\rentaltoysbusiness`, since new terminals open in the home folder.
-- Name the branch that holds the change.
+- The branch is always `main`. Later pulls are just `git pull`; a first-time setup is
+  `git clone https://github.com/ramakrishna1410/rentaltoysbusiness.git && cd rentaltoysbusiness`.
 - Say clearly if a step resets local data (e.g. `npm run db:setup` wipes and reloads demo data).
 
 ## Project quick reference

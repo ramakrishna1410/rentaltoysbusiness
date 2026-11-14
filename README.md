@@ -9,6 +9,16 @@ App-first MVP for a toy-rental subscription business:
 | `apps/api` | Node + Express + Prisma/PostgreSQL API used by both apps (and the future website) |
 | `packages/shared` | Plans and pricing, toy lifecycle rules, QR payloads, slotting and recommendation algorithms, API client |
 
+## Working together
+
+Everyone works on the one `main` branch.
+
+1. Before you start: `git pull`
+2. When you're done: `git add -A && git commit -m "what I changed" && git push`
+3. If the push is rejected (someone pushed first): `git pull && git push`
+
+Tell each other (e.g. on WhatsApp) what you're working on, so two people don't change the same screen at the same time.
+
 ## Quick start
 
 Requirements: Node 20+, PostgreSQL 16 (or Docker).
